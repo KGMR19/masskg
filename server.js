@@ -17,50 +17,46 @@ if (fs.existsSync(DATA_FILE)) {
   catch (e) { console.error('⚠ data.json повреждён, начинаю с пустой БД:', e.message); }
 }
 
-// На всякий случай чистим старых ботов
-state.users = state.users.filter(u => u.id !== -1);
-state.messages = state.messages.filter(m => m.fromId !== -1 && m.toId !== -1);
+// Гарантируем наличие массивов
+if (!state.users) state.users = [];
+if (!state.messages) state.messages = [];
 
 let saveTimer = null;
 function persist() {
   if (saveTimer) return;
   saveTimer = setTimeout(() => {
     saveTimer = null;
-    fs.writeFileSync(DATA_FILE, JSON.stringify(state));
+    try { fs.writeFileSync(DATA_FILE, JSON.stringify(state)); }
+    catch (e) { console.error('Ошибка записи в файл:', e); }
   }, 100);
 }
-const findUserByName = (u) => state.users.find(x => x.username === u);
-const findUserById   = (id) => state.users.find(x => x.id === id);
+
+// УМНЫЙ ПОИСК (без учета регистра и пробелов)
+const findUserByName = (u) => {
+  if (!u) return null;
+  return state.users.find(x => x.username.toLowerCase() === u.toLowerCase().trim());
+};
+const findUserById = (id) => state.users.find(x => x.id === Number(id));
 
 /* ---------- HTTP ---------- */
 const app = express();
-app.use(express.json({ limit: '20mb' })); // Для аудио и аватарок
+app.use(express.json({ limit: '20mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Защита от брутфорса
-const loginAttempts = new Map();
-setInterval(() => loginAttempts.clear(), 15 * 60 * 1000);
+app.get('/api/health', (_, res) => res.json({ ok: true, users: state.users.length }));
 
-app.get('/api/health', (_, res) =>
-  res.json({ ok: true, users: state.users.length, messages: state.messages.length }));
-
-app.post('/api/register', async (req, res) => {
+app.post('/api/register', (req, res) => {
   const { username, password } = req.body || {};
-  if (typeof username !== 'string' || typeof password !== 'string')
-    return res.status(400).json({ error: 'Нужны username и password' });
+  if (!username || !password) return res.status(400).json({ error: 'Нужны логин и пароль' });
+  
   const u = username.trim();
   if (u.length < 3) return res.status(400).json({ error: 'Логин — минимум 3 символа' });
   if (password.length < 6) return res.status(400).json({ error: 'Пароль — минимум 6 символов' });
-  if (findUserByName(u))   return res.status(409).json({ error: 'Такой логин уже занят' });
+  if (findUserByName(u)) return res.status(409).json({ error: 'Такой логин уже занят' });
 
   const user = { 
-    id: state.nextUserId++, 
-    username: u, 
-    passwordHash: bcrypt.hashSync(password, 10), 
-    createdAt: Date.now(),
-    contacts: [],
-    avatar: null,
-    publicKey: null
+    id: state.nextUserId++, username: u, passwordHash: bcrypt.hashSync(password, 10), 
+    createdAt: Date.now(), contacts: [], avatar: null, publicKey: null
   };
   state.users.push(user);
   persist();
@@ -71,31 +67,20 @@ app.post('/api/register', async (req, res) => {
 
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body || {};
-  const ip = req.ip;
-  
-  if ((loginAttempts.get(ip) || 0) > 10) return res.status(429).json({ error: 'Слишком много попыток. Подождите 15 минут.' });
-
-  const user = findUserByName(String(username || '').trim());
-  if (!user || !bcrypt.compareSync(String(password || ''), user.passwordHash)) {
-    loginAttempts.set(ip, (loginAttempts.get(ip) || 0) + 1);
+  const user = findUserByName(String(username || ''));
+  if (!user || !bcrypt.compareSync(String(password || ''), user.passwordHash))
     return res.status(401).json({ error: 'Неверный логин или пароль' });
-  }
 
-  loginAttempts.delete(ip);
   const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
   res.json({ token, user: { id: user.id, username: user.username, avatar: user.avatar, publicKey: user.publicKey } });
 });
 
 app.post('/api/change-password', (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ error: 'Нет токена' });
-    const payload = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+    const payload = jwt.verify(req.headers.authorization.split(' ')[1], JWT_SECRET);
     const user = findUserById(payload.id);
-    
-    if (!user || !bcrypt.compareSync(req.body.oldPassword, user.passwordHash)) {
+    if (!user || !bcrypt.compareSync(req.body.oldPassword, user.passwordHash))
       return res.status(400).json({ error: 'Неверный текущий пароль' });
-    }
     
     user.passwordHash = bcrypt.hashSync(req.body.newPassword, 10);
     persist();
@@ -105,9 +90,7 @@ app.post('/api/change-password', (req, res) => {
 
 app.post('/api/public-key', (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ error: 'Нет токена' });
-    const payload = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+    const payload = jwt.verify(req.headers.authorization.split(' ')[1], JWT_SECRET);
     const user = findUserById(payload.id);
     if (user) { user.publicKey = req.body.publicKey; persist(); }
     res.json({ ok: true });
@@ -116,16 +99,11 @@ app.post('/api/public-key', (req, res) => {
 
 app.post('/api/avatar', (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ error: 'Нет токена' });
-    const payload = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+    const payload = jwt.verify(req.headers.authorization.split(' ')[1], JWT_SECRET);
     const user = findUserById(payload.id);
-    if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
-
-    user.avatar = req.body.avatar;
-    persist();
-    res.json({ ok: true, avatar: user.avatar });
-  } catch (e) { res.status(401).json({ error: 'Неверный токен' }); }
+    if (user) { user.avatar = req.body.avatar; persist(); res.json({ ok: true, avatar: user.avatar }); }
+    else res.status(404).json({ error: 'Не найден' });
+  } catch (e) { res.status(401).json({ error: 'Ошибка' }); }
 });
 
 /* ---------- Socket.io ---------- */
@@ -158,9 +136,8 @@ io.on('connection', (socket) => {
   online.get(me.id).add(socket.id);
   io.emit('online', [...online.keys()]);
 
-  const sendUsers = (cb) => {
-    const list = getContactsList(me.id);
-    cb ? cb(list) : socket.emit('users', list);
+  const sendUsers = () => {
+    socket.emit('users', getContactsList(me.id));
   };
   sendUsers();
 
@@ -168,9 +145,12 @@ io.on('connection', (socket) => {
 
   socket.on('add-contact', ({ username }, cb) => {
     try {
-      const target = findUserByName(String(username || '').trim());
+      const target = findUserByName(String(username || ''));
       const meUser = findUserById(me.id);
-      if (!target) return cb({ error: 'Пользователь не найден' });
+
+      console.log(`[LOG] ${me.username} добавляет ${username}. Найден: ${target ? target.username : 'НЕТ'}`);
+
+      if (!target) return cb({ error: 'Пользователь не найден. (Помните: на бесплатном Render все аккаунты стираются после 15 мин бездействия)' });
       if (target.id === me.id) return cb({ error: 'Нельзя добавить самого себя' });
       if (meUser.contacts.includes(target.id)) return cb({ error: 'Уже в контактах' });
 
@@ -180,11 +160,13 @@ io.on('connection', (socket) => {
       persist();
 
       cb({ ok: true });
+      
+      // Обновляем списки у обоих
       const meList = getContactsList(me.id);
       for (const sid of online.get(me.id) || []) io.to(sid).emit('users', meList);
       const targetList = getContactsList(target.id);
       for (const sid of online.get(target.id) || []) io.to(sid).emit('users', targetList);
-    } catch (e) { cb({ error: e.message }); }
+    } catch (e) { cb({ error: 'Ошибка сервера: ' + e.message }); }
   });
 
   socket.on('history', ({ withId }, cb) => {
@@ -192,7 +174,6 @@ io.on('connection', (socket) => {
       .filter(m => (m.fromId === me.id && m.toId === withId) || (m.fromId === withId && m.toId === me.id))
       .slice(-200);
     
-    // Помечаем прочитанными
     let updated = false;
     rows.forEach(m => { if (m.toId === me.id && !m.read) { m.read = true; updated = true; } });
     if (updated) {
@@ -200,19 +181,17 @@ io.on('connection', (socket) => {
       const targetSockets = online.get(withId);
       if (targetSockets) for (const sid of targetSockets) io.to(sid).emit('messages-read');
     }
-
     cb(rows);
   });
 
   socket.on('typing', ({ toId, isTyping }) => {
-    const targetSockets = online.get(toId);
+    const targetSockets = online.get(Number(toId));
     if (targetSockets) for (const sid of targetSockets) io.to(sid).emit('typing', { fromId: me.id, isTyping });
   });
 
   socket.on('message', ({ toId, body, type, iv }, ack) => {
-    body = String(body || '').slice(0, 4000000);
-    const target = findUserById(Number(toId));
-    if (!target || !body.trim()) return ack && ack({ error: 'Некорректное сообщение' });
+    const target = findUserById(toId);
+    if (!target || !body.trim()) return ack && ack({ error: 'Ошибка' });
 
     const msg = { id: state.nextMsgId++, fromId: me.id, toId: target.id, body, type: type || 'text', iv, read: false, createdAt: Date.now() };
     state.messages.push(msg);
@@ -220,20 +199,16 @@ io.on('connection', (socket) => {
 
     const deliver = (uid, message) => {
       const set = online.get(uid);
-      if (!set) return;
-      for (const sid of set) io.to(sid).emit('message', message);
+      if (set) for (const sid of set) io.to(sid).emit('message', message);
     };
     deliver(target.id, msg);
     for (const sid of online.get(me.id) || []) { if (sid !== socket.id) io.to(sid).emit('message', msg); }
-    
     if (ack) ack({ ok: true, msg });
   });
 
   socket.on('mark-read', ({ toId }) => {
     let updated = false;
-    state.messages.forEach(m => {
-      if (m.fromId === Number(toId) && m.toId === me.id && !m.read) { m.read = true; updated = true; }
-    });
+    state.messages.forEach(m => { if (m.fromId === Number(toId) && m.toId === me.id && !m.read) { m.read = true; updated = true; } });
     if (updated) {
       persist();
       const targetSockets = online.get(Number(toId));
@@ -241,7 +216,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  /* ---------- Звонки ---------- */
   socket.on('call-user', ({ toId, offer, type }) => {
     const targetSockets = online.get(Number(toId));
     if (targetSockets) for (const sid of targetSockets) io.to(sid).emit('incoming-call', { fromId: me.id, fromName: me.username, offer, type });

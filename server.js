@@ -1,125 +1,183 @@
+// === ФИКС ДЛЯ WINDOWS (Ошибка ENOTFOUND) ===
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first'); // Приоритет IPv4
+dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']); // Надежные DNS-серверы
+// ===========================================
+
+require('dotenv').config(); // Загружаем переменные из .env
+
 const express = require('express');
 const http = require('http');
 const path = require('path');
-const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { Server } = require('socket.io');
+const mongoose = require('mongoose');
 
 const PORT = Number(process.env.PORT) || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-only-change-me';
-const DATA_FILE = path.join(__dirname, 'data.json');
+const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-key-change-me';
+const MONGODB_URI = process.env.MONGODB_URI;
 
-/* ---------- Хранилище ---------- */
-let state = { nextUserId: 1, nextMsgId: 1, users: [], messages: [] };
-if (fs.existsSync(DATA_FILE)) {
-  try { state = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); }
-  catch (e) { console.error('⚠ data.json повреждён, начинаю с пустой БД:', e.message); }
+if (!MONGODB_URI) {
+  console.error('❌ Не задана переменная окружения MONGODB_URI');
+  process.exit(1);
 }
 
-state.users.forEach(u => { 
-  if (!u.contacts) u.contacts = []; 
-  if (u.avatar === undefined) u.avatar = null;
+/* ---------- Схемы MongoDB ---------- */
+const UserSchema = new mongoose.Schema({
+  username: { type: String, unique: true, required: true },
+  passwordHash: { type: String, required: true },
+  avatar: { type: String, default: null },
+  contacts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  publicKey: { type: String, default: null }, // Публичный ключ для E2EE
+  createdAt: { type: Date, default: Date.now }
 });
-state.users = state.users.filter(u => u.id !== -1);
-state.messages = state.messages.filter(m => m.fromId !== -1 && m.toId !== -1);
 
-let saveTimer = null;
-function persist() {
-  if (saveTimer) return;
-  saveTimer = setTimeout(() => {
-    saveTimer = null;
-    fs.writeFileSync(DATA_FILE, JSON.stringify(state));
-  }, 100);
-}
-const findUserByName = (u) => state.users.find(x => x.username === u);
-const findUserById   = (id) => state.users.find(x => x.id === id);
+const MessageSchema = new mongoose.Schema({
+  fromId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  toId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  body: { type: String, required: true }, // Зашифрованный текст или Base64 (стикеры/аудио)
+  iv: { type: String, default: null },    // Вектор инициализации для E2EE
+  type: { type: String, default: 'text' }, // text, sticker, audio
+  read: { type: Boolean, default: false },
+  createdAt: { type: Date, default: Date.now }
+});
+
+const User = mongoose.model('User', UserSchema);
+const Message = mongoose.model('Message', MessageSchema);
+
+/* ---------- Подключение к MongoDB ---------- */
+mongoose.connect(MONGODB_URI, { family: 4 })
+  .then(() => console.log('✅ Подключено к MongoDB'))
+  .catch(err => { 
+    console.error('❌ Ошибка подключения к MongoDB:', err.message); 
+    // Если ошибка DNS, даем подсказку
+    if (err.message.includes('ENOTFOUND')) {
+      console.log('\n💡 Совет: Убедитесь, что ваш кластер в MongoDB Atlas не стоит на паузе (Paused) и IP 0.0.0.0/0 разрешен.');
+    }
+    process.exit(1); 
+  });
 
 /* ---------- HTTP ---------- */
 const app = express();
-// Увеличиваем лимит, так как аудио в Base64 весит прилично
-app.use(express.json({ limit: '20mb' })); 
+app.use(express.json({ limit: '20mb' })); // Увеличенный лимит для аудио
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.get('/api/health', (_, res) =>
-  res.json({ ok: true, users: state.users.length, messages: state.messages.length }));
+// Защита от брутфорса (перебора паролей)
+const loginAttempts = new Map();
+setInterval(() => loginAttempts.clear(), 15 * 60 * 1000);
 
-app.post('/api/register', (req, res) => {
-  const { username, password } = req.body || {};
-  if (typeof username !== 'string' || typeof password !== 'string')
-    return res.status(400).json({ error: 'Нужны username и password' });
-  const u = username.trim();
-  if (u.length < 3) return res.status(400).json({ error: 'Логин — минимум 3 символа' });
-  if (password.length < 6) return res.status(400).json({ error: 'Пароль — минимум 6 символов' });
-  if (findUserByName(u))   return res.status(409).json({ error: 'Такой логин уже занят' });
-
-  const user = { 
-    id: state.nextUserId++, 
-    username: u, 
-    passwordHash: bcrypt.hashSync(password, 10), 
-    createdAt: Date.now(),
-    contacts: [],
-    avatar: null
-  };
-  state.users.push(user);
-  persist();
-
-  const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
-  res.json({ token, user: { id: user.id, username: user.username, avatar: user.avatar } });
-});
-
-app.post('/api/login', (req, res) => {
-  const { username, password } = req.body || {};
-  const user = findUserByName(String(username || '').trim());
-  if (!user || !bcrypt.compareSync(String(password || ''), user.passwordHash))
-    return res.status(401).json({ error: 'Неверный логин или пароль' });
-
-  const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
-  res.json({ token, user: { id: user.id, username: user.username, avatar: user.avatar } });
-});
-
-app.post('/api/avatar', (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ error: 'Нет токена' });
-  
+app.get('/api/health', async (_, res) => {
   try {
-    const token = authHeader.split(' ')[1];
-    const payload = jwt.verify(token, JWT_SECRET);
-    const user = findUserById(payload.id);
-    
-    if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
-    
-    user.avatar = req.body.avatar;
-    persist();
-    
-    res.json({ ok: true, avatar: user.avatar });
+    const users = await User.countDocuments();
+    const messages = await Message.countDocuments();
+    res.json({ ok: true, users, messages });
   } catch (e) {
-    res.status(401).json({ error: 'Неверный токен' });
+    res.status(500).json({ ok: false, error: e.message });
   }
+});
+
+app.post('/api/register', async (req, res) => {
+  try {
+    const { username, password } = req.body || {};
+    if (!username || !password) return res.status(400).json({ error: 'Нужны логин и пароль' });
+    const u = username.trim();
+    if (u.length < 3) return res.status(400).json({ error: 'Логин — минимум 3 символа' });
+    if (password.length < 6) return res.status(400).json({ error: 'Пароль — минимум 6 символов' });
+    
+    const exists = await User.findOne({ username: u });
+    if (exists) return res.status(409).json({ error: 'Такой логин уже занят' });
+
+    const user = await User.create({ username: u, passwordHash: bcrypt.hashSync(password, 10) });
+    const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, user: { id: user._id, username: user.username, avatar: user.avatar, publicKey: user.publicKey } });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/login', async (req, res) => {
+  try {
+    const { username, password } = req.body || {};
+    const ip = req.ip;
+    
+    if ((loginAttempts.get(ip) || 0) > 10) return res.status(429).json({ error: 'Слишком много попыток. Подождите 15 минут.' });
+
+    const user = await User.findOne({ username: String(username || '').trim() });
+    if (!user || !bcrypt.compareSync(String(password || ''), user.passwordHash)) {
+      loginAttempts.set(ip, (loginAttempts.get(ip) || 0) + 1);
+      return res.status(401).json({ error: 'Неверный логин или пароль' });
+    }
+
+    loginAttempts.delete(ip);
+    const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, user: { id: user._id, username: user.username, avatar: user.avatar, publicKey: user.publicKey } });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Смена пароля
+app.post('/api/change-password', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: 'Нет токена' });
+    const payload = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+    const user = await User.findById(payload.id);
+    
+    if (!bcrypt.compareSync(req.body.oldPassword, user.passwordHash)) {
+      return res.status(400).json({ error: 'Неверный текущий пароль' });
+    }
+    
+    user.passwordHash = bcrypt.hashSync(req.body.newPassword, 10);
+    await user.save();
+    res.json({ ok: true });
+  } catch (e) { res.status(401).json({ error: 'Ошибка авторизации' }); }
+});
+
+// Сохранение публичного ключа E2EE
+app.post('/api/public-key', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: 'Нет токена' });
+    const payload = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+    
+    await User.findByIdAndUpdate(payload.id, { publicKey: req.body.publicKey });
+    res.json({ ok: true });
+  } catch (e) { res.status(401).json({ error: 'Ошибка' }); }
+});
+
+// Аватарка
+app.post('/api/avatar', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: 'Нет токена' });
+    const payload = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+    const user = await User.findById(payload.id);
+    if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
+
+    user.avatar = req.body.avatar;
+    await user.save();
+    res.json({ ok: true, avatar: user.avatar });
+  } catch (e) { res.status(401).json({ error: 'Неверный токен' }); }
 });
 
 /* ---------- Socket.io ---------- */
 const server = http.createServer(app);
-const io = new Server(server, { maxHttpBufferSize: 2e7 }); // 20 MB для аудио
+const io = new Server(server, { maxHttpBufferSize: 2e7 });
 
-io.use((socket, next) => {
+io.use(async (socket, next) => {
   try {
     const payload = jwt.verify(socket.handshake.auth?.token || '', JWT_SECRET);
-    const u = findUserById(payload.id);
-    if (!u) return next(new Error('Пользователь не найден'));
-    socket.user = { id: u.id, username: u.username };
+    const user = await User.findById(payload.id);
+    if (!user) return next(new Error('unauthorized'));
+    socket.user = { id: user._id.toString(), username: user.username };
     next();
   } catch { next(new Error('unauthorized')); }
 });
 
 const online = new Map();
 
-const getContactsList = (userId) => {
-  const user = findUserById(userId);
-  if (!user || !user.contacts) return [];
-  return state.users
-    .filter(u => user.contacts.includes(u.id))
-    .map(u => ({ id: u.id, username: u.username, avatar: u.avatar }));
+const getContactsList = async (userId) => {
+  const user = await User.findById(userId).populate('contacts', 'username avatar publicKey');
+  if (!user) return [];
+  return user.contacts.map(c => ({ id: c._id.toString(), username: c.username, avatar: c.avatar, publicKey: c.publicKey }));
 };
 
 io.on('connection', (socket) => {
@@ -128,127 +186,109 @@ io.on('connection', (socket) => {
   online.get(me.id).add(socket.id);
   io.emit('online', [...online.keys()]);
 
-  const sendUsers = (cb) => {
-    const list = getContactsList(me.id);
+  const sendUsers = async (cb) => {
+    const list = await getContactsList(me.id);
     cb ? cb(list) : socket.emit('users', list);
   };
   sendUsers();
 
-  socket.on('users', sendUsers);
+  socket.on('users', async (cb) => { cb(await getContactsList(me.id)); });
 
-  socket.on('add-contact', ({ username }, cb) => {
-    const target = findUserByName(String(username || '').trim());
-    const meUser = findUserById(me.id);
+  socket.on('add-contact', async ({ username }, cb) => {
+    try {
+      const target = await User.findOne({ username: String(username || '').trim() });
+      const meUser = await User.findById(me.id);
+      if (!target) return cb({ error: 'Пользователь не найден' });
+      if (target._id.equals(meUser._id)) return cb({ error: 'Нельзя добавить самого себя' });
+      if (meUser.contacts.some(c => c.equals(target._id))) return cb({ error: 'Уже в контактах' });
 
-    if (!target) return cb({ error: 'Пользователь с таким логином не найден' });
-    if (target.id === me.id) return cb({ error: 'Нельзя добавить самого себя' });
-    if (meUser.contacts.includes(target.id)) return cb({ error: 'Этот пользователь уже в ваших контактах' });
+      meUser.contacts.push(target._id);
+      if (!target.contacts.includes(meUser._id)) target.contacts.push(meUser._id);
+      await meUser.save(); await target.save();
 
-    meUser.contacts.push(target.id);
-    if (!target.contacts) target.contacts = [];
-    target.contacts.push(me.id);
-    persist();
-
-    cb({ ok: true });
-
-    const meList = getContactsList(me.id);
-    for (const sid of online.get(me.id) || []) io.to(sid).emit('users', meList);
-
-    const targetList = getContactsList(target.id);
-    for (const sid of online.get(target.id) || []) io.to(sid).emit('users', targetList);
+      cb({ ok: true });
+      const meList = await getContactsList(me.id);
+      for (const sid of online.get(me.id) || []) io.to(sid).emit('users', meList);
+      const targetList = await getContactsList(target._id.toString());
+      for (const sid of online.get(target._id.toString()) || []) io.to(sid).emit('users', targetList);
+    } catch (e) { cb({ error: e.message }); }
   });
 
-  socket.on('history', ({ withId }, cb) => {
-    const rows = state.messages.filter(m =>
-      (m.fromId === me.id && m.toId === withId) || (m.fromId === withId && m.toId === me.id)
-    ).slice(-200);
-    
-    // Помечаем сообщения от собеседника как прочитанные
-    let updated = false;
-    rows.forEach(m => {
-      if (m.toId === me.id && !m.read) {
-        m.read = true;
-        updated = true;
-      }
-    });
-    if (updated) {
-      persist();
-      const targetSockets = online.get(withId);
-      if (targetSockets) {
-        for (const sid of targetSockets) io.to(sid).emit('messages-read');
-      }
-    }
+  socket.on('history', async ({ withId }, cb) => {
+    try {
+      const rows = await Message.find({
+        $or: [{ fromId: me.id, toId: withId }, { fromId: withId, toId: me.id }]
+      }).sort({ createdAt: 1 }).limit(200);
 
-    if (cb) cb(rows);
+      await Message.updateMany({ fromId: withId, toId: me.id, read: false }, { $set: { read: true } });
+      const targetSockets = online.get(withId);
+      if (targetSockets) for (const sid of targetSockets) io.to(sid).emit('messages-read');
+
+      cb(rows.map(r => ({
+        id: r._id.toString(),
+        fromId: r.fromId.toString(),
+        toId: r.toId.toString(),
+        body: r.body,
+        iv: r.iv,
+        type: r.type,
+        read: r.read,
+        createdAt: r.createdAt.getTime()
+      })));
+    } catch (e) { cb([]); }
   });
 
   socket.on('typing', ({ toId, isTyping }) => {
-    const targetSockets = online.get(Number(toId));
-    if (targetSockets) {
-      for (const sid of targetSockets) {
-        io.to(sid).emit('typing', { fromId: me.id, isTyping });
-      }
-    }
+    const targetSockets = online.get(toId);
+    if (targetSockets) for (const sid of targetSockets) io.to(sid).emit('typing', { fromId: me.id, isTyping });
   });
 
-  socket.on('message', ({ toId, body, type }, ack) => {
-    body = String(body || '').slice(0, 4000000); // Лимит на размер аудио
-    const target = findUserById(Number(toId));
-    if (!target || !body.trim()) return ack && ack({ error: 'Некорректное сообщение' });
+  socket.on('message', async ({ toId, body, type, iv }, ack) => {
+    try {
+      const target = await User.findById(toId);
+      if (!target || !body.trim()) return ack && ack({ error: 'Некорректное сообщение' });
 
-    const msg = { id: state.nextMsgId++, fromId: me.id, toId: target.id, body, type: type || 'text', createdAt: Date.now(), read: false };
-    state.messages.push(msg);
-    persist();
+      const msg = await Message.create({ fromId: me.id, toId: target._id, body, type: type || 'text', iv, read: false });
+      const msgData = {
+        id: msg._id.toString(), fromId: me.id, toId: target._id.toString(),
+        body: msg.body, type: msg.type, iv: msg.iv, read: msg.read, createdAt: msg.createdAt.getTime()
+      };
 
-    const deliver = (uid, message) => {
-      const set = online.get(uid);
-      if (!set) return;
-      for (const sid of set) io.to(sid).emit('message', message);
-    };
-    deliver(target.id, msg);
-    for (const sid of online.get(me.id) || []) {
-      if (sid !== socket.id) io.to(sid).emit('message', msg);
-    }
-    if (ack) ack({ ok: true, msg });
+      const deliver = (uid, message) => {
+        const set = online.get(uid);
+        if (set) for (const sid of set) io.to(sid).emit('message', message);
+      };
+      deliver(target._id.toString(), msgData);
+      for (const sid of online.get(me.id) || []) { if (sid !== socket.id) io.to(sid).emit('message', msgData); }
+      
+      if (ack) ack({ ok: true, msg: msgData });
+    } catch (e) { if (ack) ack({ error: e.message }); }
   });
 
-  socket.on('mark-read', ({ toId }) => {
-    let updated = false;
-    state.messages.forEach(m => {
-      if (m.fromId === Number(toId) && m.toId === me.id && !m.read) {
-        m.read = true;
-        updated = true;
-      }
-    });
-    if (updated) {
-      persist();
-      const targetSockets = online.get(Number(toId));
-      if (targetSockets) {
-        for (const sid of targetSockets) io.to(sid).emit('messages-read');
-      }
-    }
+  socket.on('mark-read', async ({ toId }) => {
+    try {
+      await Message.updateMany({ fromId: toId, toId: me.id, read: false }, { $set: { read: true } });
+      const targetSockets = online.get(toId);
+      if (targetSockets) for (const sid of targetSockets) io.to(sid).emit('messages-read');
+    } catch (e) { /* ignore */ }
   });
 
-  /* ================= ЗВОНКИ ================= */
+  /* ---------- Звонки (WebRTC) ---------- */
   socket.on('call-user', ({ toId, offer, type }) => {
-    const targetSockets = online.get(Number(toId));
-    if (targetSockets) {
-      for (const sid of targetSockets) io.to(sid).emit('incoming-call', { fromId: me.id, fromName: me.username, offer, type });
-    }
+    const targetSockets = online.get(toId);
+    if (targetSockets) for (const sid of targetSockets) io.to(sid).emit('incoming-call', { fromId: me.id, fromName: me.username, offer, type });
   });
   socket.on('answer-call', ({ toId, answer }) => {
-    const targetSockets = online.get(Number(toId));
+    const targetSockets = online.get(toId);
     if (targetSockets) for (const sid of targetSockets) io.to(sid).emit('call-answered', { answer });
   });
   socket.on('ice-candidate', ({ toId, candidate }) => {
-    const targetSockets = online.get(Number(toId));
+    const targetSockets = online.get(toId);
     if (targetSockets) for (const sid of targetSockets) io.to(sid).emit('ice-candidate', { candidate });
   });
   socket.on('end-call', ({ toId }) => {
-    const targetSockets = online.get(Number(toId));
+    const targetSockets = online.get(toId);
     if (targetSockets) for (const sid of targetSockets) io.to(sid).emit('call-ended');
   });
-  /* ========================================== */
 
   socket.on('disconnect', () => {
     const set = online.get(me.id);
@@ -257,13 +297,6 @@ io.on('connection', (socket) => {
   });
 });
 
-server.on('error', (e) => {
-  if (e.code === 'EADDRINUSE') console.error(`\n❌ Порт ${PORT} занят.\n`);
-  else console.error('❌ Ошибка сервера:', e);
-  process.exit(1);
-});
-
 server.listen(PORT, () => {
-  console.log(`\n✅ Готово. Открой в браузере: http://localhost:${PORT}`);
-  console.log(`   База: ${DATA_FILE}\n`);
+  console.log(`\n✅ Сервер с E2EE запущен на порту ${PORT}\n`);
 });

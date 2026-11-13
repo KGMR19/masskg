@@ -3,168 +3,178 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>Private Messenger</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<title>Secure Messenger</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg-base: #0f172a;
-    --bg-panel: #1e293b;
-    --bg-hover: #334155;
-    --bg-input: #0f172a;
-    --text-main: #f8fafc;
-    --text-muted: #94a3b8;
-    --accent: #3b82f6;
-    --accent-hover: #2563eb;
-    --accent-light: #60a5fa;
-    --border-color: #334155;
-    --danger: #ef4444;
-    --success: #22c55e;
+    --bg-base: #0b0f19; --bg-panel: #111827; --bg-hover: #1f2937; --bg-input: #1f2937;
+    --text-main: #f3f4f6; --text-muted: #9ca3af; --accent: #6366f1; --accent-hover: #4f46e5;
+    --accent-light: #818cf8; --border-color: #374151; --danger: #ef4444; --success: #10b981;
+    --bubble-me: linear-gradient(135deg, #6366f1, #8b5cf6); --bubble-other: #1f2937;
   }
-
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-base); color: var(--text-main); height: 100vh; height: 100dvh; overflow: hidden; }
   .hidden { display: none !important; }
 
-  /* ---------- АВТОРИЗАЦИЯ ---------- */
-  #auth { max-width: 380px; margin: 10vh auto; padding: 32px; background: var(--bg-panel); border-radius: 20px; border: 1px solid var(--border-color); }
-  #auth h1 { font-size: 24px; margin-bottom: 24px; text-align: center; }
-  #auth input { width: 100%; padding: 14px 16px; margin-bottom: 16px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); font-size: 15px; outline: none; }
-  #auth input:focus { border-color: var(--accent); }
-  #auth button { width: 100%; padding: 14px; border: none; border-radius: 12px; background: var(--accent); color: white; font-weight: 600; cursor: pointer; font-size: 15px; }
+  /* АВТОРИЗАЦИЯ */
+  #auth { max-width: 380px; margin: 10vh auto; padding: 32px; background: var(--bg-panel); border-radius: 24px; border: 1px solid var(--border-color); box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+  #auth h1 { font-size: 28px; margin-bottom: 24px; text-align: center; font-weight: 700; background: var(--bubble-me); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  #auth input { width: 100%; padding: 14px 16px; margin-bottom: 16px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); font-size: 15px; outline: none; transition: 0.2s; }
+  #auth input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2); }
+  #auth button { width: 100%; padding: 14px; border: none; border-radius: 12px; background: var(--accent); color: white; font-weight: 600; cursor: pointer; font-size: 15px; transition: 0.2s; }
+  #auth button:hover { background: var(--accent-hover); transform: translateY(-1px); }
   #auth #reg { background: transparent; border: 1px solid var(--border-color); margin-top: 12px; }
+  #auth #reg:hover { background: var(--bg-hover); transform: none; }
   #err { color: #f87171; font-size: 14px; text-align: center; margin-top: 16px; min-height: 20px; }
 
-  /* ---------- ОСНОВНОЙ ИНТЕРФЕЙС ---------- */
-  #app { display: grid; grid-template-columns: 320px 1fr; height: 100%; width: 100vw; }
+  /* ИНТЕРФЕЙС */
+  #app { display: grid; grid-template-columns: 340px 1fr; height: 100%; width: 100vw; }
   aside { background: var(--bg-panel); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; height: 100%; }
   aside header { padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); }
-  
-  .user-profile { display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 6px; border-radius: 12px; }
+  .user-profile { display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 6px; border-radius: 12px; transition: 0.2s; }
   .user-profile:hover { background: var(--bg-hover); }
-  .avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #8b5cf6); display: flex; justify-content: center; align-items: center; font-weight: 600; font-size: 16px; color: white; flex-shrink: 0; overflow: hidden; }
+  .avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--bubble-me); display: flex; justify-content: center; align-items: center; font-weight: 600; font-size: 18px; color: white; flex-shrink: 0; overflow: hidden; }
   .avatar img { width: 100%; height: 100%; object-fit: cover; }
-  .user-info b { font-size: 15px; display: block; }
-  .user-info span { font-size: 12px; color: var(--success); }
-  
-  .header-actions { display: flex; gap: 4px; }
-  .header-actions button { background: transparent; border: none; color: var(--text-muted); cursor: pointer; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
-  .header-actions button:hover { background: var(--bg-hover); color: var(--text-main); }
-  #addBtn { color: var(--accent-light); }
+  .user-info b { font-size: 16px; display: block; font-weight: 600; }
+  .user-info span { font-size: 13px; color: var(--success); display: flex; align-items: center; gap: 4px; }
+  .header-actions { display: flex; gap: 8px; }
+  .header-actions button { background: var(--bg-hover); border: none; color: var(--text-muted); cursor: pointer; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+  .header-actions button:hover { background: var(--accent); color: white; }
 
-  .users-container { flex: 1; overflow-y: auto; }
-  #users { list-style: none; padding: 12px; }
-  #users li { padding: 8px 12px; border-radius: 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .search-container { padding: 12px 20px; border-bottom: 1px solid var(--border-color); }
+  .search-container input { width: 100%; padding: 10px 16px; border-radius: 20px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); font-size: 14px; outline: none; transition: 0.2s; }
+  .search-container input:focus { border-color: var(--accent); }
+
+  .users-container { flex: 1; overflow-y: auto; padding: 8px; }
+  .users-container::-webkit-scrollbar { width: 6px; }
+  .users-container::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+  #users { list-style: none; }
+  #users li { padding: 12px; border-radius: 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; transition: 0.2s; }
   #users li:hover { background: var(--bg-hover); }
-  #users li.active { background: var(--accent); color: white; }
+  #users li.active { background: var(--accent); color: white; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); }
+  #users li.active .dot { border-color: var(--accent); }
   .contact-left { display: flex; align-items: center; gap: 12px; }
-  .contact-left .avatar { width: 36px; height: 36px; font-size: 14px; }
-  .dot { width: 10px; height: 10px; border-radius: 50%; background: #475569; border: 2px solid var(--bg-panel); }
-  .dot.on { background: var(--success); }
-  #empty-contacts { display: none; flex-direction: column; align-items: center; padding: 20px; text-align: center; color: var(--text-muted); }
+  .contact-left .avatar { width: 38px; height: 38px; font-size: 15px; }
+  .username { font-size: 15px; font-weight: 500; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: #4b5563; border: 2px solid var(--bg-panel); transition: background 0.3s; }
+  .dot.on { background: var(--success); box-shadow: 0 0 8px var(--success); }
+  #empty-contacts { display: none; flex-direction: column; align-items: center; padding: 40px 20px; text-align: center; color: var(--text-muted); }
 
-  /* ---------- ЧАТ ---------- */
-  main { display: flex; flex-direction: column; height: 100%; background: var(--bg-base); }
-  #empty-chat { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); }
-  main header { padding: 16px 24px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; background: var(--bg-panel); }
-  .chat-info { display: flex; align-items: center; gap: 12px; }
-  .chat-info .title { font-weight: 600; font-size: 16px; }
-  
+  /* ЧАТ */
+  main { display: flex; flex-direction: column; height: 100%; background: var(--bg-base); position: relative; }
+  #empty-chat { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); background: radial-gradient(circle at center, rgba(99, 102, 241, 0.05) 0%, transparent 70%); }
+  #empty-chat h2 { color: var(--text-main); margin: 16px 0 8px; font-weight: 600; }
+  main header { padding: 16px 24px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; background: var(--bg-panel); z-index: 10; }
+  .chat-info { display: flex; align-items: center; gap: 16px; }
+  .chat-info .avatar { width: 42px; height: 42px; font-size: 16px; }
+  .chat-info .title { font-weight: 600; font-size: 17px; }
   #typing-indicator { font-size: 12px; color: var(--accent-light); height: 16px; margin-top: 2px; font-style: italic; opacity: 0; transition: opacity 0.2s; }
   #typing-indicator.visible { opacity: 1; }
 
-  /* ИСПРАВЛЕННЫЕ ИКОНКИ ЗВОНКОВ */
   .call-actions { display: flex; gap: 8px; align-items: center; }
-  .call-actions button { 
-    background: var(--bg-hover); border: none; color: var(--text-main); cursor: pointer; 
-    width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; 
-    transition: 0.2s; padding: 0;
-  }
-  .call-actions button:hover { background: var(--accent); }
+  .call-actions button { background: var(--bg-hover); border: none; color: var(--text-main); cursor: pointer; width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: 0.2s; padding: 0; }
+  .call-actions button:hover { background: var(--accent); transform: scale(1.05); }
   .call-actions button svg { width: 20px; height: 20px; }
+  .close-chat-btn { background: transparent !important; color: var(--text-muted); }
+  .close-chat-btn:hover { background: var(--danger) !important; color: white; }
+  .close-chat-btn svg { width: 24px; height: 24px; }
 
-  #messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 12px; }
-  .msg { max-width: 65%; padding: 12px 16px; border-radius: 16px; background: var(--bg-panel); align-self: flex-start; font-size: 15px; line-height: 1.5; border-bottom-left-radius: 4px; position: relative; word-wrap: break-word; white-space: pre-wrap;}
-  .msg.me { background: var(--accent); align-self: flex-end; border-bottom-left-radius: 16px; border-bottom-right-radius: 4px; }
-  .msg .t { display: block; font-size: 11px; opacity: 0.6; margin-top: 6px; text-align: right; display: flex; justify-content: flex-end; align-items: center; gap: 4px;}
-  
+  #messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+  #messages::-webkit-scrollbar { width: 6px; }
+  #messages::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+  .msg { max-width: 65%; padding: 12px 16px; border-radius: 20px; background: var(--bubble-other); align-self: flex-start; font-size: 15px; line-height: 1.5; border-bottom-left-radius: 4px; position: relative; word-wrap: break-word; white-space: pre-wrap; box-shadow: 0 2px 5px rgba(0,0,0,0.1); animation: pop 0.2s ease-out; }
+  .msg.me { background: var(--bubble-me); align-self: flex-end; border-bottom-left-radius: 20px; border-bottom-right-radius: 4px; color: white; }
+  .msg .t { display: block; font-size: 11px; opacity: 0.7; margin-top: 6px; text-align: right; display: flex; justify-content: flex-end; align-items: center; gap: 4px;}
+  @keyframes pop { 0% { opacity: 0; transform: scale(0.95) translateY(5px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
   .msg .ticks { font-size: 14px; line-height: 1; }
-  .msg .ticks.read { color: #60a5fa; } 
-  
+  .msg .ticks.read { color: #38bdf8; } 
   .msg.sticker { background: transparent !important; padding: 0 !important; border: none !important; box-shadow: none; }
-  .msg.sticker img { width: 120px; height: 120px; object-fit: contain; }
+  .msg.sticker img { width: 140px; height: 140px; object-fit: contain; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2)); }
   .msg.sticker .t { display: none; }
+  .msg.audio { padding: 10px 14px; min-width: 220px; }
+  .msg.audio audio { width: 100%; height: 40px; outline: none; border-radius: 12px; }
+  .msg.audio .t { margin-top: 6px; }
 
-  .msg.audio { padding: 8px 12px; min-width: 200px; }
-  .msg.audio audio { width: 100%; height: 40px; outline: none; border-radius: 8px; }
-  .msg.audio .t { margin-top: 4px; }
-
-  /* Поле ввода */
-  #form { position: relative; display: flex; gap: 8px; padding: 16px 24px; background: var(--bg-panel); border-top: 1px solid var(--border-color); align-items: center; }
-  .icon-btn { background: transparent; border: none; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; transition: 0.2s; flex-shrink: 0; }
+  /* ВВОД */
+  #form { position: relative; display: flex; gap: 12px; padding: 16px 24px; background: var(--bg-panel); border-top: 1px solid var(--border-color); align-items: center; }
+  .icon-btn { background: transparent; border: none; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 50%; transition: 0.2s; flex-shrink: 0; }
   .icon-btn:hover { background: var(--bg-hover); color: var(--text-main); }
-  .icon-btn svg { width: 22px; height: 22px; }
-  
-  #micBtn.recording { color: var(--danger); animation: pulse 1s infinite; background: rgba(239, 68, 68, 0.1); }
+  .icon-btn svg { width: 24px; height: 24px; }
+  #micBtn.recording { color: var(--danger); animation: pulse 1s infinite; background: rgba(239, 68, 68, 0.15); }
   @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
-  
-  #input { flex: 1; padding: 14px 20px; border-radius: 24px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); font-size: 15px; outline: none; }
-  #input:focus { border-color: var(--accent); }
-  #form button[type="submit"] { width: 48px; height: 48px; border-radius: 50%; border: none; background: var(--accent); color: white; cursor: pointer; display: flex; justify-content: center; align-items: center; flex-shrink: 0; transition: 0.2s;}
-  #form button[type="submit"]:hover { background: var(--accent-hover); }
-  #form button[type="submit"] svg { width: 20px; height: 20px; margin-left: -2px; }
+  #input { flex: 1; padding: 14px 20px; border-radius: 24px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); font-size: 15px; outline: none; transition: 0.2s; }
+  #input:focus { border-color: var(--accent); background: var(--bg-base); }
+  #form button[type="submit"] { width: 48px; height: 48px; border-radius: 50%; border: none; background: var(--accent); color: white; cursor: pointer; display: flex; justify-content: center; align-items: center; flex-shrink: 0; transition: 0.2s; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4); }
+  #form button[type="submit"]:hover { background: var(--accent-hover); transform: scale(1.05); }
+  #form button[type="submit"] svg { width: 22px; height: 22px; margin-left: -2px; }
 
-  /* Панель стикеров */
-  #sticker-panel { position: absolute; bottom: 80px; left: 24px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 16px; padding: 12px; width: 300px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-  #sticker-panel img { width: 100%; cursor: pointer; padding: 4px; border-radius: 8px; transition: 0.1s; }
+  /* СТИКЕРЫ */
+  #sticker-panel { position: absolute; bottom: 85px; left: 24px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 20px; padding: 16px; width: 320px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; z-index: 100; box-shadow: 0 15px 40px rgba(0,0,0,0.5); }
+  #sticker-panel img { width: 100%; cursor: pointer; padding: 4px; border-radius: 12px; transition: 0.1s; }
   #sticker-panel img:hover { transform: scale(1.15); background: var(--bg-hover); }
-  .custom-sticker-btn { width: 100%; height: 100%; aspect-ratio: 1; border-radius: 8px; border: 2px dashed var(--border-color); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); font-size: 24px; transition: 0.2s; }
-  .custom-sticker-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(59, 130, 246, 0.1); }
+  .custom-sticker-btn { width: 100%; height: 100%; aspect-ratio: 1; border-radius: 12px; border: 2px dashed var(--border-color); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); font-size: 28px; transition: 0.2s; }
+  .custom-sticker-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(99, 102, 241, 0.1); }
 
-  /* ---------- МОДАЛЬНОЕ ОКНО НАСТРОЕК ---------- */
-  #settings-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 2000; }
-  .settings-content { background: var(--bg-panel); width: 90%; max-width: 400px; border-radius: 20px; padding: 24px; border: 1px solid var(--border-color); box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
-  .settings-content h2 { font-size: 20px; margin-bottom: 20px; text-align: center; }
+  /* НАСТРОЙКИ */
+  #settings-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 2000; }
+  .settings-content { background: var(--bg-panel); width: 90%; max-width: 420px; border-radius: 24px; padding: 32px; border: 1px solid var(--border-color); box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
+  .settings-content h2 { font-size: 22px; margin-bottom: 24px; text-align: center; font-weight: 700; }
+  
+  .settings-tabs { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
+  .settings-tab { background: transparent; border: none; color: var(--text-muted); padding: 8px 16px; cursor: pointer; font-size: 15px; border-radius: 8px; transition: 0.2s; font-weight: 500;}
+  .settings-tab.active { background: var(--bg-hover); color: var(--text-main); }
+  .settings-tab:hover { color: var(--text-main); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  
   .setting-item { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--border-color); }
   .setting-item:last-of-type { border-bottom: none; margin-bottom: 20px; }
   .setting-item label { font-size: 15px; color: var(--text-muted); }
-  .settings-btn { background: var(--bg-hover); border: none; color: var(--text-main); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+  .settings-btn { background: var(--bg-hover); border: none; color: var(--text-main); padding: 10px 20px; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 500; transition: 0.2s;}
   .settings-btn:hover { background: var(--accent); }
-  .close-settings { width: 100%; padding: 14px; background: var(--accent); color: white; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .close-settings { width: 100%; padding: 16px; background: var(--accent); color: white; border: none; border-radius: 14px; font-size: 16px; font-weight: 600; cursor: pointer; transition: 0.2s; margin-top: 10px;}
+  .close-settings:hover { background: var(--accent-hover); }
 
-  /* ---------- ЗВОНКИ (ОКНО) ---------- */
-  #call-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.95); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
-  .video-container { position: relative; width: 90%; max-width: 900px; height: 50vh; background: #000; border-radius: 20px; overflow: hidden; margin-bottom: 30px; display: flex; align-items: center; justify-content: center; }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
+  .form-group input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); outline: none; }
+  .form-group input:focus { border-color: var(--accent); }
+  .btn-save { width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
+
+  /* ЗВОНКИ */
+  #call-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(11, 15, 25, 0.98); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
+  .video-container { position: relative; width: 90%; max-width: 1000px; height: 60vh; background: #000; border-radius: 24px; overflow: hidden; margin-bottom: 30px; display: flex; align-items: center; justify-content: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
   #remote-video { width: 100%; height: 100%; object-fit: cover; }
-  #local-video { position: absolute; bottom: 20px; right: 20px; width: 150px; height: 110px; object-fit: cover; border-radius: 12px; border: 2px solid rgba(255,255,255,0.2); background: #1e293b; }
-  .call-controls { display: flex; gap: 20px; }
-  .call-btn { width: 60px; height: 60px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; color: white; }
-  .call-btn svg { width: 28px; height: 28px; }
-  .btn-accept { background: var(--success); }
-  .btn-reject, .btn-hangup { background: var(--danger); }
-  #call-status { font-size: 24px; margin-bottom: 20px; text-align: center; }
+  #local-video { position: absolute; bottom: 24px; right: 24px; width: 180px; height: 130px; object-fit: cover; border-radius: 16px; border: 2px solid rgba(255,255,255,0.1); background: #1f2937; box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
+  .call-controls { display: flex; gap: 24px; }
+  .call-btn { width: 64px; height: 64px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; color: white; transition: 0.2s;}
+  .call-btn:hover { transform: scale(1.1); }
+  .call-btn svg { width: 30px; height: 30px; }
+  .btn-accept { background: var(--success); box-shadow: 0 0 20px rgba(16, 185, 129, 0.4); }
+  .btn-reject, .btn-hangup { background: var(--danger); box-shadow: 0 0 20px rgba(239, 68, 68, 0.4); }
+  #call-status { font-size: 24px; margin-bottom: 24px; text-align: center; font-weight: 600; }
 
-  /* Мобильная адаптация */
-  .mobile-back { display: none; background: transparent; border: none; color: var(--text-main); cursor: pointer; padding-right: 12px; }
+  /* МОБИЛЬНАЯ АДАПТАЦИЯ */
   @media (max-width: 768px) {
     #app { grid-template-columns: 1fr; }
     aside { display: flex; width: 100%; border-right: none; }
     main { display: none; width: 100%; }
     #app.chat-open aside { display: none; }
     #app.chat-open main { display: flex; }
-    .mobile-back { display: block; }
     .msg { max-width: 85%; }
-    #sticker-panel { left: 12px; width: calc(100% - 24px); }
-    #form { padding: 12px; gap: 4px; }
-    .icon-btn { width: 36px; height: 36px; }
-    .icon-btn svg { width: 20px; height: 20px; }
+    #sticker-panel { left: 12px; width: calc(100% - 24px); bottom: 75px; }
+    #form { padding: 12px; gap: 6px; }
+    .icon-btn { width: 40px; height: 40px; }
+    .icon-btn svg { width: 22px; height: 22px; }
     #input { padding: 12px 16px; }
+    #form button[type="submit"] { width: 44px; height: 44px; }
   }
 </style>
 </head>
 <body>
 
 <div id="auth">
-  <h1>Добро пожаловать</h1>
+  <h1>Secure Messenger</h1>
   <form id="auth-form">
     <input id="u" name="username" placeholder="Придумайте логин" autocomplete="username" required />
     <input id="p" name="password" type="password" placeholder="Пароль" autocomplete="current-password" required />
@@ -177,6 +187,7 @@
 <div id="app" class="hidden">
   <input type="file" id="avatarInput" accept="image/*" class="hidden" />
   <input type="file" id="customStickerInput" accept="image/*" class="hidden" />
+  <input type="file" id="importKeyInput" accept=".json" class="hidden" />
 
   <aside>
     <header>
@@ -189,14 +200,18 @@
       </div>
       <div class="header-actions">
         <button id="settingsBtn" type="button" title="Настройки">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
         </button>
         <button id="addBtn" type="button" title="Добавить контакт">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="22" y1="11" x2="16" y2="11"></line></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="22" y1="11" x2="16" y2="11"></line></svg>
         </button>
       </div>
     </header>
     
+    <div class="search-container">
+      <input type="text" id="searchInput" placeholder="Поиск контактов..." autocomplete="off" />
+    </div>
+
     <div class="users-container">
       <ul id="users"></ul>
       <div id="empty-contacts">
@@ -207,16 +222,17 @@
 
   <main>
     <div id="empty-chat">
+      <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.5; margin-bottom: 16px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
       <h2>Выберите собеседника</h2>
-      <p>Выберите контакт из списка слева.</p>
+      <p>Откройте чат из списка слева, чтобы начать общение.</p>
     </div>
 
     <div id="chat-view" class="hidden" style="display:flex; flex-direction:column; height:100%;">
       <header id="chatHeader">
-        <button class="mobile-back" id="backBtn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+        <button class="icon-btn close-chat-btn" id="closeChatBtn" title="Закрыть чат">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
-        <div class="chat-info">
+        <div class="chat-info" style="flex: 1;">
           <div class="avatar" id="chat-avatar">?</div>
           <div>
             <div class="title" id="chatTitle">...</div>
@@ -236,16 +252,14 @@
       
       <form id="form" class="hidden">
         <button type="button" id="stickerBtn" class="icon-btn" title="Стикеры">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
         </button>
         <button type="button" id="micBtn" class="icon-btn" title="Записать голосовое">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
         </button>
-        
-        <input id="input" autocomplete="off" placeholder="Сообщение..." />
-        
+        <input id="input" autocomplete="off" placeholder="Напишите сообщение..." />
         <button type="submit">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
         </button>
         <div id="sticker-panel" class="hidden"></div>
       </form>
@@ -253,17 +267,50 @@
   </main>
 </div>
 
+<!-- МОДАЛЬНОЕ ОКНО НАСТРОЕК С ВКЛАДКАМИ -->
 <div id="settings-modal" class="hidden">
   <div class="settings-content">
-    <h2>Настройки профиля</h2>
-    <div class="setting-item">
-      <label>Аватарка</label>
-      <button class="settings-btn" id="changeAvatarBtn">Изменить фото</button>
+    <h2>Настройки</h2>
+    
+    <div class="settings-tabs">
+      <button class="settings-tab active" data-tab="tab-profile">Профиль</button>
+      <button class="settings-tab" data-tab="tab-security">Безопасность</button>
     </div>
-    <div class="setting-item">
-      <label>Выйти из аккаунта</label>
-      <button class="settings-btn" id="logoutBtn" style="background: rgba(239,68,68,0.2); color: #ef4444;">Выйти</button>
+
+    <!-- Вкладка Профиль -->
+    <div id="tab-profile" class="tab-content active">
+      <div class="setting-item">
+        <label>Аватарка</label>
+        <button class="settings-btn" id="changeAvatarBtn">Изменить</button>
+      </div>
+      <button class="settings-btn" id="logoutBtn" style="width: 100%; margin-top: 10px; background: rgba(239,68,68,0.2); color: #ef4444;">Выйти из аккаунта</button>
     </div>
+
+    <!-- Вкладка Безопасность -->
+    <div id="tab-security" class="tab-content">
+      <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid var(--success); padding: 12px; border-radius: 8px; margin-bottom: 20px;">
+        <p style="font-size: 13px; color: var(--success); line-height: 1.4;">
+          <b>🛡️ E2EE Включено.</b> Ваши сообщения шифруются на устройстве. Сервер их не видит.<br>
+          <span style="opacity: 0.7; font-size: 11px;">Ключ хранится в этом браузере. Если вы очистите кэш — история пропадет.</span>
+        </p>
+      </div>
+
+      <h3 style="font-size: 16px; margin-bottom: 12px;">Смена пароля</h3>
+      <div class="form-group">
+        <input type="password" id="oldPassword" placeholder="Текущий пароль" />
+      </div>
+      <div class="form-group">
+        <input type="password" id="newPassword" placeholder="Новый пароль" />
+      </div>
+      <button class="btn-save" id="changePasswordBtn">Сменить пароль</button>
+
+      <div style="margin-top: 24px; border-top: 1px solid var(--border-color); padding-top: 20px;">
+        <h3 style="font-size: 16px; margin-bottom: 12px;">Ключ шифрования</h3>
+        <button class="settings-btn" id="exportKeyBtn" style="width: 100%; margin-bottom: 8px;">Скачать ключ</button>
+        <button class="settings-btn" id="importKeyBtn" style="width: 100%;">Загрузить ключ</button>
+      </div>
+    </div>
+
     <button class="close-settings" id="closeSettingsBtn">Закрыть</button>
   </div>
 </div>
@@ -288,35 +335,115 @@
 const $ = id => document.getElementById(id);
 const LS_TOKEN = 'pm_token';
 const LS_USER  = 'pm_user';
+const LS_PRIVATE_KEY = 'pm_priv_key';
 
 let token = localStorage.getItem(LS_TOKEN);
 let me    = null;
 try { me = JSON.parse(localStorage.getItem(LS_USER) || 'null'); } catch {}
 let socket = null, current = null;
 let usersList = [], onlineSet = new Set();
+let myKeys = null;
 
 const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 
-function renderAvatar(container, username, avatarBase64) {
-  container.innerHTML = '';
-  if (avatarBase64) {
-    const img = document.createElement('img');
-    img.src = avatarBase64;
-    container.appendChild(img);
-  } else {
-    container.textContent = username.charAt(0).toUpperCase();
+/* ================= КРИПТОГРАФИЯ (E2EE) ================= */
+async function generateKeys() {
+  const keyPair = await window.crypto.subtle.generateKey(
+    { name: "ECDH", namedCurve: "P-256" },
+    true,
+    ["deriveKey", "deriveBits"]
+  );
+  const exportedPub = await window.crypto.subtle.exportKey("jwk", keyPair.publicKey);
+  const exportedPriv = await window.crypto.subtle.exportKey("jwk", keyPair.privateKey);
+  
+  localStorage.setItem(LS_PRIVATE_KEY, JSON.stringify(exportedPriv));
+  
+  await fetch('/api/public-key', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ publicKey: JSON.stringify(exportedPub) })
+  });
+
+  myKeys = { privateKey: keyPair.privateKey, publicKey: keyPair.publicKey };
+  return exportedPub;
+}
+
+async function loadKeys() {
+  const privStr = localStorage.getItem(LS_PRIVATE_KEY);
+  if (!privStr) return false;
+  try {
+    const privJwk = JSON.parse(privStr);
+    const privateKey = await window.crypto.subtle.importKey(
+      "jwk", privJwk, { name: "ECDH", namedCurve: "P-256" }, true, ["deriveKey", "deriveBits"]
+    );
+    myKeys = { privateKey };
+    return true;
+  } catch (e) {
+    return false;
   }
 }
+
+async function encryptMessage(text, targetPublicKeyJwk) {
+  const targetPubJwk = JSON.parse(targetPublicKeyJwk);
+  const targetPubKey = await window.crypto.subtle.importKey(
+    "jwk", targetPubJwk, { name: "ECDH", namedCurve: "P-256" }, true, []
+  );
+  const sharedKey = await window.crypto.subtle.deriveKey(
+    { name: "ECDH", public: targetPubKey },
+    myKeys.privateKey,
+    { name: "AES-GCM", length: 256 },
+    true,
+    ["encrypt"]
+  );
+  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+  const encoded = new TextEncoder().encode(text);
+  const ciphertext = await window.crypto.subtle.encrypt(
+    { name: "AES-GCM", iv: iv },
+    sharedKey,
+    encoded
+  );
+  return {
+    ciphertext: btoa(String.fromCharCode(...new Uint8Array(ciphertext))),
+    iv: btoa(String.fromCharCode(...iv))
+  };
+}
+
+async function decryptMessage(ciphertextB64, ivB64, senderPublicKeyJwk) {
+  try {
+    const senderPubJwk = JSON.parse(senderPublicKeyJwk);
+    const senderPubKey = await window.crypto.subtle.importKey(
+      "jwk", senderPubJwk, { name: "ECDH", namedCurve: "P-256" }, true, []
+    );
+    const sharedKey = await window.crypto.subtle.deriveKey(
+      { name: "ECDH", public: senderPubKey },
+      myKeys.privateKey,
+      { name: "AES-GCM", length: 256 },
+      true,
+      ["decrypt"]
+    );
+    const ciphertext = Uint8Array.from(atob(ciphertextB64), c => c.charCodeAt(0));
+    const iv = Uint8Array.from(atob(ivB64), c => c.charCodeAt(0));
+    const decrypted = await window.crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: iv },
+      sharedKey,
+      ciphertext
+    );
+    return new TextDecoder().decode(decrypted);
+  } catch (e) {
+    return "🔒 [Ошибка расшифровки]";
+  }
+}
+/* ========================================================= */
 
 async function api(path, data) {
   const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(j.error || 'Ошибка сети');
+  if (!r.ok) throw new Error(j.error || 'Ошибка');
   return j;
 }
 
 function saveSession(t, user) { token = t; me = user; localStorage.setItem(LS_TOKEN, t); localStorage.setItem(LS_USER, JSON.stringify(user)); }
-function clearSession() { token = null; me = null; localStorage.removeItem(LS_TOKEN); localStorage.removeItem(LS_USER); }
+function clearSession() { token = null; me = null; localStorage.removeItem(LS_TOKEN); localStorage.removeItem(LS_USER); localStorage.removeItem(LS_PRIVATE_KEY); }
 
 $('auth-form').onsubmit = (e) => { e.preventDefault(); auth('/api/login'); };
 $('reg').onclick = () => auth('/api/register');
@@ -324,15 +451,22 @@ async function auth(path) {
   $('err').textContent = '';
   try {
     const { token: t, user } = await api(path, { username: $('u').value.trim(), password: $('p').value });
-    saveSession(t, user); start();
+    saveSession(t, user); 
+    await start(); 
   } catch (e) { $('err').textContent = e.message; }
 }
 
-function start() {
+async function start() {
   $('auth').classList.add('hidden');
   $('app').classList.remove('hidden');
   $('me').textContent = me.username;
   renderAvatar($('me-avatar'), me.username, me.avatar);
+
+  const hasKeys = await loadKeys();
+  if (!hasKeys) {
+    console.log('Генерация новых ключей E2EE...');
+    await generateKeys();
+  }
 
   socket = io({ auth: { token } });
 
@@ -340,9 +474,9 @@ function start() {
   socket.on('users', rows => { usersList = rows; renderUsers(); });
   socket.on('online', ids => { onlineSet = new Set(ids); renderUsers(); });
   
-  socket.on('message', m => { 
+  socket.on('message', async m => { 
     if (current && (m.fromId === current.id || m.toId === current.id)) {
-      renderMessage(m);
+      await renderMessage(m);
       if (m.fromId === current.id) socket.emit('mark-read', { toId: current.id });
     }
   });
@@ -367,11 +501,74 @@ function start() {
   setupSettings();
 }
 
+/* ================= НАСТРОЙКИ ================= */
 function setupSettings() {
   $('settingsBtn').onclick = () => $('settings-modal').classList.remove('hidden');
   $('closeSettingsBtn').onclick = () => $('settings-modal').classList.add('hidden');
   $('changeAvatarBtn').onclick = () => { $('avatarInput').click(); $('settings-modal').classList.add('hidden'); };
   $('logoutBtn').onclick = () => { clearSession(); location.reload(); };
+
+  document.querySelectorAll('.settings-tab').forEach(tab => {
+    tab.onclick = () => {
+      document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      tab.classList.add('active');
+      $(tab.dataset.tab).classList.add('active');
+    };
+  });
+
+  $('changePasswordBtn').onclick = async () => {
+    const oldP = $('oldPassword').value;
+    const newP = $('newPassword').value;
+    if (!oldP || newP.length < 6) return alert('Новый пароль слишком короткий (мин. 6 символов)');
+    
+    try {
+      const res = await fetch('/api/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ oldPassword: oldP, newPassword: newP })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        alert('Пароль успешно изменен!');
+        $('oldPassword').value = '';
+        $('newPassword').value = '';
+      } else {
+        alert(data.error);
+      }
+    } catch (e) { alert('Ошибка сервера'); }
+  };
+
+  $('exportKeyBtn').onclick = () => {
+    const privKey = localStorage.getItem(LS_PRIVATE_KEY);
+    if (!privKey) return alert('Ключ не найден');
+    
+    const blob = new Blob([privKey], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `messenger_key_${me.username}.json`;
+    a.click();
+  };
+
+  $('importKeyBtn').onclick = () => $('importKeyInput').click();
+  $('importKeyInput').onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const privJwkStr = event.target.result;
+        JSON.parse(privJwkStr); 
+        localStorage.setItem(LS_PRIVATE_KEY, privJwkStr);
+        alert('Ключ загружен! Перезагрузка страницы...');
+        location.reload();
+      } catch (err) {
+        alert('Неверный файл ключа');
+      }
+    };
+    reader.readAsText(file);
+  };
 }
 
 $('avatarInput').onchange = (e) => {
@@ -399,6 +596,7 @@ $('avatarInput').onchange = (e) => {
   reader.readAsDataURL(file);
 };
 
+/* ================= СТИКЕРЫ ================= */
 const STICKERS = ['1f602','2764_fe0f','1f44d','1f525','1f62d','1f621','1f973','1f914','1f634','1f92f','1f929','1f648'];
 function initStickers() {
   const panel = $('sticker-panel');
@@ -444,9 +642,15 @@ $('customStickerInput').onchange = (e) => {
   reader.readAsDataURL(file);
 };
 
-function sendSticker(url) {
+async function sendSticker(url) {
   if (!current) return;
-  socket.emit('message', { toId: current.id, body: url, type: 'sticker' }, (res) => { renderMessage(res.msg); });
+  // Если стикер кастомный (Base64), шифруем. Если стандартный (URL) - отправляем как есть.
+  if (url.startsWith('data:image')) {
+    const encrypted = await encryptMessage(url, current.publicKey);
+    socket.emit('message', { toId: current.id, body: encrypted.ciphertext, iv: encrypted.iv, type: 'sticker' }, async (res) => { await renderMessage(res.msg); });
+  } else {
+    socket.emit('message', { toId: current.id, body: url, type: 'sticker' }, async (res) => { await renderMessage(res.msg); });
+  }
 }
 
 let typingTimeout = null;
@@ -459,9 +663,11 @@ function setupTyping() {
   });
 }
 
+/* ================= ЗАПИСЬ ЗВУКА ================= */
 let mediaRecorder = null;
 let audioChunks = [];
 let isRecording = false;
+let recordTimer = null;
 const micSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>`;
 const stopSvg = `<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect></svg>`;
 
@@ -471,47 +677,72 @@ function setupAudioRecording() {
     if (isRecording) { mediaRecorder.stop(); return; }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder = new MediaRecorder(stream);
+      let options = { audio: true };
+      if (MediaRecorder.isTypeSupported('audio/webm')) options.mimeType = 'audio/webm';
+      else if (MediaRecorder.isTypeSupported('audio/mp4')) options.mimeType = 'audio/mp4';
+      
+      mediaRecorder = new MediaRecorder(stream, options);
       audioChunks = [];
-      mediaRecorder.ondataavailable = event => { audioChunks.push(event.data); };
-      mediaRecorder.onstop = () => {
+      mediaRecorder.ondataavailable = event => { if (event.data.size > 0) audioChunks.push(event.data); };
+      
+      mediaRecorder.onstop = async () => {
+        clearTimeout(recordTimer);
         isRecording = false;
         $('micBtn').classList.remove('recording');
         $('micBtn').innerHTML = micSvg;
-        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        const mimeType = mediaRecorder.mimeType || 'audio/webm';
+        const audioBlob = new Blob(audioChunks, { type: mimeType });
+        
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
-        reader.onloadend = () => {
-          socket.emit('message', { toId: current.id, body: reader.result, type: 'audio' }, (res) => { renderMessage(res.msg); });
+        reader.onloadend = async () => {
+          // Шифруем аудио!
+          const encrypted = await encryptMessage(reader.result, current.publicKey);
+          socket.emit('message', { toId: current.id, body: encrypted.ciphertext, iv: encrypted.iv, type: 'audio' }, async (res) => { 
+            if (res && res.error) alert('Ошибка отправки: ' + res.error);
+            else await renderMessage(res.msg); 
+          });
         };
         stream.getTracks().forEach(track => track.stop());
       };
+      
       mediaRecorder.start();
       isRecording = true;
       $('micBtn').classList.add('recording');
       $('micBtn').innerHTML = stopSvg;
-    } catch (err) { alert('Не удалось получить доступ к микрофону: ' + err.message); }
+      
+      recordTimer = setTimeout(() => {
+        if (isRecording && mediaRecorder) { mediaRecorder.stop(); alert('Максимальная длина голосового — 1 минута.'); }
+      }, 60000);
+    } catch (err) { alert('Ошибка доступа к микрофону: ' + err.message); }
   };
 }
 
-$('form').onsubmit = (e) => {
+/* ================= ОТПРАВКА И РЕНДЕР ================= */
+$('form').onsubmit = async (e) => {
   e.preventDefault();
   const body = $('input').value.trim();
   if (!body || !current) return;
-  socket.emit('message', { toId: current.id, body, type: 'text' }, (res) => {
+  
+  if (!current.publicKey) return alert('У собеседника нет ключа шифрования. Попросите его зайти в мессенджер (ключ генерируется автоматически).');
+  
+  const encrypted = await encryptMessage(body, current.publicKey);
+  
+  socket.emit('message', { toId: current.id, body: encrypted.ciphertext, iv: encrypted.iv, type: 'text' }, async (res) => {
     if (res && res.error) return alert(res.error);
-    renderMessage(res.msg);
+    await renderMessage(res.msg);
     socket.emit('typing', { toId: current.id, isTyping: false });
   });
   $('input').value = '';
 };
 
-function renderMessage(m) {
+async function renderMessage(m) {
   const d = document.createElement('div');
-  if (m.type === 'sticker') {
+  
+  if (m.type === 'sticker' && !m.iv) {
     d.className = 'msg sticker' + (m.fromId === me.id ? ' me' : '');
     d.innerHTML = `<img src="${escapeHtml(m.body)}" alt="sticker">`;
-  } else if (m.type === 'audio') {
+  } else if (m.type === 'audio' && !m.iv) {
     d.className = 'msg audio' + (m.fromId === me.id ? ' me' : '');
     d.innerHTML = `<audio controls src="${m.body}"></audio>`;
     const timeSpan = document.createElement('span');
@@ -526,17 +757,48 @@ function renderMessage(m) {
     d.appendChild(timeSpan);
   } else {
     d.className = 'msg' + (m.fromId === me.id ? ' me' : '');
-    d.innerHTML = `${escapeHtml(m.body)}`;
-    const timeSpan = document.createElement('span');
-    timeSpan.className = 't';
-    timeSpan.innerHTML = new Date(m.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    if (m.fromId === me.id) {
-      const ticks = document.createElement('span');
-      ticks.className = 'ticks' + (m.read ? ' read' : '');
-      ticks.textContent = m.read ? '✓✓' : '✓';
-      timeSpan.appendChild(ticks);
+    
+    let content = m.body;
+    let isEncrypted = !!m.iv;
+    
+    if (isEncrypted) {
+      const sender = usersList.find(u => u.id === m.fromId);
+      if (sender && sender.publicKey) {
+        content = await decryptMessage(m.body, m.iv, sender.publicKey);
+      } else {
+        content = "🔒 [Нет ключа отправителя]";
+      }
     }
-    d.appendChild(timeSpan);
+    
+    if (m.type === 'sticker') {
+      d.className = 'msg sticker' + (m.fromId === me.id ? ' me' : '');
+      d.innerHTML = `<img src="${content}" alt="sticker">`;
+    } else if (m.type === 'audio') {
+      d.className = 'msg audio' + (m.fromId === me.id ? ' me' : '');
+      d.innerHTML = `<audio controls src="${content}"></audio>`;
+      const timeSpan = document.createElement('span');
+      timeSpan.className = 't';
+      timeSpan.innerHTML = new Date(m.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+      if (m.fromId === me.id) {
+        const ticks = document.createElement('span');
+        ticks.className = 'ticks' + (m.read ? ' read' : '');
+        ticks.textContent = m.read ? '✓✓' : '✓';
+        timeSpan.appendChild(ticks);
+      }
+      d.appendChild(timeSpan);
+    } else {
+      d.innerHTML = `${escapeHtml(content)}`;
+      const timeSpan = document.createElement('span');
+      timeSpan.className = 't';
+      timeSpan.innerHTML = new Date(m.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+      if (m.fromId === me.id) {
+        const ticks = document.createElement('span');
+        ticks.className = 'ticks' + (m.read ? ' read' : '');
+        ticks.textContent = m.read ? '✓✓' : '✓';
+        timeSpan.appendChild(ticks);
+      }
+      d.appendChild(timeSpan);
+    }
   }
   $('messages').appendChild(d);
   $('messages').scrollTop = $('messages').scrollHeight;
@@ -553,25 +815,40 @@ function openChat(u) {
   $('typing-indicator').classList.remove('visible');
   $('messages').innerHTML = '';
   renderUsers();
-  socket.emit('history', { withId: u.id }, rows => {
-    rows.forEach(renderMessage);
+  socket.emit('history', { withId: u.id }, async rows => {
+    for (const m of rows) { await renderMessage(m); }
     socket.emit('mark-read', { toId: u.id });
   });
 }
 
-$('backBtn').onclick = () => {
+function closeChat() {
   $('app').classList.remove('chat-open');
   current = null;
   $('chat-view').classList.add('hidden');
   $('empty-chat').classList.remove('hidden');
   $('form').classList.add('hidden');
   renderUsers();
-};
+}
+$('closeChatBtn').onclick = closeChat;
+
+function renderAvatar(container, username, avatarBase64) {
+  container.innerHTML = '';
+  if (avatarBase64) {
+    const img = document.createElement('img');
+    img.src = avatarBase64;
+    container.appendChild(img);
+  } else {
+    container.textContent = username.charAt(0).toUpperCase();
+  }
+}
 
 function renderUsers() {
   const ul = $('users'); ul.innerHTML = '';
   $('empty-contacts').style.display = usersList.length === 0 ? 'flex' : 'none';
-  for (const u of usersList) {
+  const query = $('searchInput').value.toLowerCase();
+  const filtered = usersList.filter(u => u.username.toLowerCase().includes(query));
+
+  for (const u of filtered) {
     const li = document.createElement('li');
     li.className = current && current.id === u.id ? 'active' : '';
     const leftDiv = document.createElement('div'); leftDiv.className = 'contact-left';
@@ -584,6 +861,7 @@ function renderUsers() {
     ul.appendChild(li);
   }
 }
+$('searchInput').oninput = renderUsers;
 
 function promptAddContact() {
   const username = prompt('Введите юзернейм пользователя:');

@@ -1,10 +1,4 @@
-// === ФИКС ДЛЯ WINDOWS (Ошибка ENOTFOUND) ===
-const dns = require('dns');
-dns.setDefaultResultOrder('ipv4first'); // Приоритет IPv4
-dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']); // Надежные DNS-серверы
-// ===========================================
-
-require('dotenv').config(); // Загружаем переменные из .env
+require('dotenv').config(); // В Render переменные окружения подтягиваются автоматически
 
 const express = require('express');
 const http = require('http');
@@ -29,16 +23,16 @@ const UserSchema = new mongoose.Schema({
   passwordHash: { type: String, required: true },
   avatar: { type: String, default: null },
   contacts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  publicKey: { type: String, default: null }, // Публичный ключ для E2EE
+  publicKey: { type: String, default: null },
   createdAt: { type: Date, default: Date.now }
 });
 
 const MessageSchema = new mongoose.Schema({
   fromId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   toId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  body: { type: String, required: true }, // Зашифрованный текст или Base64 (стикеры/аудио)
-  iv: { type: String, default: null },    // Вектор инициализации для E2EE
-  type: { type: String, default: 'text' }, // text, sticker, audio
+  body: { type: String, required: true },
+  iv: { type: String, default: null },
+  type: { type: String, default: 'text' },
   read: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now }
 });
@@ -47,23 +41,18 @@ const User = mongoose.model('User', UserSchema);
 const Message = mongoose.model('Message', MessageSchema);
 
 /* ---------- Подключение к MongoDB ---------- */
-mongoose.connect(MONGODB_URI, { family: 4 })
-  .then(() => console.log('✅ Подключено к MongoDB'))
+mongoose.connect(MONGODB_URI)
+  .then(() => console.log('✅ Подключено к MongoDB Atlas'))
   .catch(err => { 
     console.error('❌ Ошибка подключения к MongoDB:', err.message); 
-    // Если ошибка DNS, даем подсказку
-    if (err.message.includes('ENOTFOUND')) {
-      console.log('\n💡 Совет: Убедитесь, что ваш кластер в MongoDB Atlas не стоит на паузе (Paused) и IP 0.0.0.0/0 разрешен.');
-    }
     process.exit(1); 
   });
 
 /* ---------- HTTP ---------- */
 const app = express();
-app.use(express.json({ limit: '20mb' })); // Увеличенный лимит для аудио
+app.use(express.json({ limit: '20mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Защита от брутфорса (перебора паролей)
 const loginAttempts = new Map();
 setInterval(() => loginAttempts.clear(), 15 * 60 * 1000);
 
@@ -113,7 +102,6 @@ app.post('/api/login', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Смена пароля
 app.post('/api/change-password', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
@@ -131,7 +119,6 @@ app.post('/api/change-password', async (req, res) => {
   } catch (e) { res.status(401).json({ error: 'Ошибка авторизации' }); }
 });
 
-// Сохранение публичного ключа E2EE
 app.post('/api/public-key', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
@@ -143,7 +130,6 @@ app.post('/api/public-key', async (req, res) => {
   } catch (e) { res.status(401).json({ error: 'Ошибка' }); }
 });
 
-// Аватарка
 app.post('/api/avatar', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
@@ -272,7 +258,6 @@ io.on('connection', (socket) => {
     } catch (e) { /* ignore */ }
   });
 
-  /* ---------- Звонки (WebRTC) ---------- */
   socket.on('call-user', ({ toId, offer, type }) => {
     const targetSockets = online.get(toId);
     if (targetSockets) for (const sid of targetSockets) io.to(sid).emit('incoming-call', { fromId: me.id, fromName: me.username, offer, type });

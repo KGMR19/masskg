@@ -12,12 +12,31 @@
     --accent-light: #818cf8; --border-color: #374151; --danger: #ef4444; --success: #10b981;
     --bubble-me: linear-gradient(135deg, #6366f1, #8b5cf6); --bubble-other: #1f2937;
   }
+
+  /* ================= ЦВЕТОВЫЕ ТЕМЫ ================= */
+  body.theme-blue { --bg-base: #0f172a; --bg-panel: #1e293b; --bg-hover: #334155; --bg-input: #0f172a; --text-main: #f8fafc; --text-muted: #94a3b8; --accent: #3b82f6; --accent-hover: #2563eb; --accent-light: #60a5fa; --border-color: #334155; --bubble-me: linear-gradient(135deg, #3b82f6, #06b6d4); --bubble-other: #1e293b; }
+  body.theme-red { --bg-base: #1a0b0b; --bg-panel: #291111; --bg-hover: #3d1919; --bg-input: #1a0b0b; --text-main: #fef2f2; --text-muted: #fca5a5; --accent: #ef4444; --accent-hover: #dc2626; --accent-light: #f87171; --border-color: #451a1a; --bubble-me: linear-gradient(135deg, #ef4444, #f97316); --bubble-other: #291111; }
+  body.theme-gray { --bg-base: #1f2937; --bg-panel: #374151; --bg-hover: #4b5563; --bg-input: #111827; --text-main: #f9fafb; --text-muted: #9ca3af; --accent: #9ca3af; --accent-hover: #6b7280; --accent-light: #d1d5db; --border-color: #4b5563; --bubble-me: linear-gradient(135deg, #6b7280, #4b5563); --bubble-other: #374151; }
+  body.theme-pink { --bg-base: #1c0f15; --bg-panel: #2d1721; --bg-hover: #43222f; --bg-input: #1c0f15; --text-main: #fdf2f8; --text-muted: #f9a8d4; --accent: #ec4899; --accent-hover: #db2777; --accent-light: #f472b6; --border-color: #4c1d35; --bubble-me: linear-gradient(135deg, #ec4899, #f43f5e); --bubble-other: #2d1721; }
+  
+  body.theme-sunset { --bg-base: #1f1215; --bg-panel: #2e1a1e; --bg-hover: #45252b; --bg-input: #1f1215; --text-main: #fff1f2; --text-muted: #fda4af; --accent: #f97316; --accent-hover: #ea580c; --accent-light: #fb923c; --border-color: #4c1d24; --bubble-me: linear-gradient(135deg, #f97316, #e11d48); --bubble-other: #2e1a1e; }
+  body.theme-ocean { --bg-base: #041e24; --bg-panel: #0a2e36; --bg-hover: #114551; --bg-input: #041e24; --text-main: #ecfeff; --text-muted: #67e8f9; --accent: #06b6d4; --accent-hover: #0891b2; --accent-light: #22d3ee; --border-color: #155e75; --bubble-me: linear-gradient(135deg, #06b6d4, #3b82f6); --bubble-other: #0a2e36; }
+  body.theme-dracula { --bg-base: #1e1f29; --bg-panel: #282a36; --bg-hover: #44475a; --bg-input: #1e1f29; --text-main: #f8f8f2; --text-muted: #6272a4; --accent: #bd93f9; --accent-hover: #ff79c6; --accent-light: #ffb86c; --border-color: #44475a; --bubble-me: linear-gradient(135deg, #bd93f9, #ff79c6); --bubble-other: #282a36; }
+  body.theme-cyberpunk { --bg-base: #09090b; --bg-panel: #18181b; --bg-hover: #27272a; --bg-input: #09090b; --text-main: #facc15; --text-muted: #a1a1aa; --accent: #facc15; --accent-hover: #eab308; --accent-light: #fde047; --border-color: #3f3f46; --bubble-me: linear-gradient(135deg, #facc15, #06b6d4); --bubble-other: #18181b; }
+  body.theme-coffee { --bg-base: #1c1512; --bg-panel: #2a1f1a; --bg-hover: #3e2c24; --bg-input: #1c1512; --text-main: #fef3c7; --text-muted: #b45309; --accent: #d97706; --accent-hover: #b45309; --accent-light: #f59e0b; --border-color: #452a1b; --bubble-me: linear-gradient(135deg, #d97706, #78350f); --bubble-other: #2a1f1a; }
+  
+  /* СЕКРЕТНАЯ ТЕМА ОТ DEEPSEEK */
+  body.theme-deepseek { --bg-base: #030712; --bg-panel: #0f172a; --bg-hover: #1e293b; --bg-input: #030712; --text-main: #e2e8f0; --text-muted: #64748b; --accent: #4f46e5; --accent-hover: #4338ca; --accent-light: #818cf8; --border-color: #1e293b; --bubble-me: linear-gradient(135deg, #4f46e5, #06b6d4); --bubble-other: #0f172a; }
+  body.theme-deepseek main header, body.theme-deepseek aside header { box-shadow: 0 4px 20px rgba(79, 70, 229, 0.15); border-bottom: 1px solid #4f46e5; }
+  body.theme-deepseek .msg.me { box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4); }
+  /* ================================================= */
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-base); color: var(--text-main); height: 100vh; height: 100dvh; overflow: hidden; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-base); color: var(--text-main); height: 100vh; height: 100dvh; overflow: hidden; transition: background 0.3s, color 0.3s; }
   .hidden { display: none !important; }
 
   /* АВТОРИЗАЦИЯ */
-  #auth { max-width: 380px; margin: 10vh auto; padding: 32px; background: var(--bg-panel); border-radius: 24px; border: 1px solid var(--border-color); box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+  #auth { max-width: 380px; margin: 10vh auto; padding: 32px; background: var(--bg-panel); border-radius: 24px; border: 1px solid var(--border-color); box-shadow: 0 20px 50px rgba(0,0,0,0.5); transition: 0.3s; }
   #auth h1 { font-size: 28px; margin-bottom: 24px; text-align: center; font-weight: 700; background: var(--bubble-me); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
   #auth input { width: 100%; padding: 14px 16px; margin-bottom: 16px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); font-size: 15px; outline: none; transition: 0.2s; }
   #auth input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2); }
@@ -29,7 +48,7 @@
 
   /* ИНТЕРФЕЙС */
   #app { display: grid; grid-template-columns: 340px 1fr; height: 100%; width: 100vw; }
-  aside { background: var(--bg-panel); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; height: 100%; }
+  aside { background: var(--bg-panel); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; height: 100%; transition: background 0.3s; }
   aside header { padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); }
   .user-profile { display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 6px; border-radius: 12px; transition: 0.2s; }
   .user-profile:hover { background: var(--bg-hover); }
@@ -51,7 +70,7 @@
   #users { list-style: none; }
   #users li { padding: 12px; border-radius: 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; transition: 0.2s; }
   #users li:hover { background: var(--bg-hover); }
-  #users li.active { background: var(--accent); color: white; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); }
+  #users li.active { background: var(--accent); color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
   #users li.active .dot { border-color: var(--accent); }
   .contact-left { display: flex; align-items: center; gap: 12px; }
   .contact-left .avatar { width: 38px; height: 38px; font-size: 15px; }
@@ -61,10 +80,10 @@
   #empty-contacts { display: none; flex-direction: column; align-items: center; padding: 40px 20px; text-align: center; color: var(--text-muted); }
 
   /* ЧАТ */
-  main { display: flex; flex-direction: column; height: 100%; background: var(--bg-base); position: relative; }
+  main { display: flex; flex-direction: column; height: 100%; background: var(--bg-base); position: relative; transition: background 0.3s; }
   #empty-chat { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); background: radial-gradient(circle at center, rgba(99, 102, 241, 0.05) 0%, transparent 70%); }
   #empty-chat h2 { color: var(--text-main); margin: 16px 0 8px; font-weight: 600; }
-  main header { padding: 16px 24px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; background: var(--bg-panel); z-index: 10; }
+  main header { padding: 16px 24px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; background: var(--bg-panel); z-index: 10; transition: background 0.3s; }
   .chat-info { display: flex; align-items: center; gap: 16px; }
   .chat-info .avatar { width: 42px; height: 42px; font-size: 16px; }
   .chat-info .title { font-weight: 600; font-size: 17px; }
@@ -79,10 +98,10 @@
   .close-chat-btn:hover { background: var(--danger) !important; color: white; }
   .close-chat-btn svg { width: 24px; height: 24px; }
 
-  #messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+  #messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; position: relative; }
   #messages::-webkit-scrollbar { width: 6px; }
   #messages::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
-  .msg { max-width: 65%; padding: 12px 16px; border-radius: 20px; background: var(--bubble-other); align-self: flex-start; font-size: 15px; line-height: 1.5; border-bottom-left-radius: 4px; position: relative; word-wrap: break-word; white-space: pre-wrap; box-shadow: 0 2px 5px rgba(0,0,0,0.1); animation: pop 0.2s ease-out; }
+  .msg { max-width: 65%; padding: 12px 16px; border-radius: 20px; background: var(--bubble-other); align-self: flex-start; font-size: 15px; line-height: 1.5; border-bottom-left-radius: 4px; position: relative; word-wrap: break-word; white-space: pre-wrap; box-shadow: 0 2px 5px rgba(0,0,0,0.1); animation: pop 0.2s ease-out; transition: background 0.3s; }
   .msg.me { background: var(--bubble-me); align-self: flex-end; border-bottom-left-radius: 20px; border-bottom-right-radius: 4px; color: white; }
   .msg .t { display: block; font-size: 11px; opacity: 0.7; margin-top: 6px; text-align: right; display: flex; justify-content: flex-end; align-items: center; gap: 4px;}
   @keyframes pop { 0% { opacity: 0; transform: scale(0.95) translateY(5px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
@@ -96,7 +115,7 @@
   .msg.audio .t { margin-top: 6px; }
 
   /* ВВОД */
-  #form { position: relative; display: flex; gap: 12px; padding: 16px 24px; background: var(--bg-panel); border-top: 1px solid var(--border-color); align-items: center; }
+  #form { position: relative; display: flex; gap: 12px; padding: 16px 24px; background: var(--bg-panel); border-top: 1px solid var(--border-color); align-items: center; transition: background 0.3s; }
   .icon-btn { background: transparent; border: none; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 50%; transition: 0.2s; flex-shrink: 0; }
   .icon-btn:hover { background: var(--bg-hover); color: var(--text-main); }
   .icon-btn svg { width: 24px; height: 24px; }
@@ -104,12 +123,12 @@
   @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
   #input { flex: 1; padding: 14px 20px; border-radius: 24px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); font-size: 15px; outline: none; transition: 0.2s; }
   #input:focus { border-color: var(--accent); background: var(--bg-base); }
-  #form button[type="submit"] { width: 48px; height: 48px; border-radius: 50%; border: none; background: var(--accent); color: white; cursor: pointer; display: flex; justify-content: center; align-items: center; flex-shrink: 0; transition: 0.2s; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4); }
+  #form button[type="submit"] { width: 48px; height: 48px; border-radius: 50%; border: none; background: var(--accent); color: white; cursor: pointer; display: flex; justify-content: center; align-items: center; flex-shrink: 0; transition: 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
   #form button[type="submit"]:hover { background: var(--accent-hover); transform: scale(1.05); }
   #form button[type="submit"] svg { width: 22px; height: 22px; margin-left: -2px; }
 
   /* СТИКЕРЫ */
-  #sticker-panel { position: absolute; bottom: 85px; left: 24px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 20px; padding: 16px; width: 320px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; z-index: 100; box-shadow: 0 15px 40px rgba(0,0,0,0.5); }
+  #sticker-panel { position: absolute; bottom: 85px; left: 24px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 20px; padding: 16px; width: 320px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; z-index: 100; box-shadow: 0 15px 40px rgba(0,0,0,0.5); transition: background 0.3s; }
   #sticker-panel img { width: 100%; cursor: pointer; padding: 4px; border-radius: 12px; transition: 0.1s; }
   #sticker-panel img:hover { transform: scale(1.15); background: var(--bg-hover); }
   .custom-sticker-btn { width: 100%; height: 100%; aspect-ratio: 1; border-radius: 12px; border: 2px dashed var(--border-color); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); font-size: 28px; transition: 0.2s; }
@@ -117,7 +136,7 @@
 
   /* НАСТРОЙКИ */
   #settings-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 2000; }
-  .settings-content { background: var(--bg-panel); width: 90%; max-width: 420px; border-radius: 24px; padding: 32px; border: 1px solid var(--border-color); box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
+  .settings-content { background: var(--bg-panel); width: 90%; max-width: 420px; border-radius: 24px; padding: 32px; border: 1px solid var(--border-color); box-shadow: 0 25px 50px rgba(0,0,0,0.5); transition: background 0.3s; }
   .settings-content h2 { font-size: 22px; margin-bottom: 24px; text-align: center; font-weight: 700; }
   
   .settings-tabs { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
@@ -131,7 +150,7 @@
   .setting-item:last-of-type { border-bottom: none; margin-bottom: 20px; }
   .setting-item label { font-size: 15px; color: var(--text-muted); }
   .settings-btn { background: var(--bg-hover); border: none; color: var(--text-main); padding: 10px 20px; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 500; transition: 0.2s;}
-  .settings-btn:hover { background: var(--accent); }
+  .settings-btn:hover { background: var(--accent); color: white; }
   .close-settings { width: 100%; padding: 16px; background: var(--accent); color: white; border: none; border-radius: 14px; font-size: 16px; font-weight: 600; cursor: pointer; transition: 0.2s; margin-top: 10px;}
   .close-settings:hover { background: var(--accent-hover); }
 
@@ -139,7 +158,8 @@
   .form-group label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
   .form-group input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); outline: none; }
   .form-group input:focus { border-color: var(--accent); }
-  .btn-save { width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
+  .btn-save { width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: 0.2s;}
+  .btn-save:hover { background: var(--accent-hover); }
 
   /* ЗВОНКИ */
   #call-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(11, 15, 25, 0.98); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
@@ -172,6 +192,9 @@
 </style>
 </head>
 <body>
+
+<!-- Секретный контейнер для салюта -->
+<div id="confetti-container" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 9999; overflow: hidden;"></div>
 
 <div id="auth">
   <h1>Secure Messenger</h1>
@@ -283,6 +306,25 @@
         <label>Аватарка</label>
         <button class="settings-btn" id="changeAvatarBtn">Изменить</button>
       </div>
+      
+      <!-- Выбор темы -->
+      <div class="setting-item" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+        <label>Цветовая тема</label>
+        <select id="themeSelect" style="width: 100%; padding: 12px; border-radius: 8px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); outline: none; cursor: pointer; font-family: inherit; font-size: 15px;">
+          <option value="default">Чёрная (по умолчанию)</option>
+          <option value="blue">Синяя</option>
+          <option value="red">Красная</option>
+          <option value="gray">Серая</option>
+          <option value="pink">Розовая</option>
+          <option value="sunset">🌅 Закат</option>
+          <option value="ocean">🌊 Океан</option>
+          <option value="dracula">🧛 Дракула</option>
+          <option value="cyberpunk">🤖 Киберпанк</option>
+          <option value="coffee">☕ Кофе</option>
+          <option value="deepseek">🌟 DeepSeek (Секретная)</option>
+        </select>
+      </div>
+
       <button class="settings-btn" id="logoutBtn" style="width: 100%; margin-top: 10px; background: rgba(239,68,68,0.2); color: #ef4444;">Выйти из аккаунта</button>
     </div>
 
@@ -349,9 +391,7 @@ const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'
 /* ================= КРИПТОГРАФИЯ (E2EE) ================= */
 async function generateKeys() {
   const keyPair = await window.crypto.subtle.generateKey(
-    { name: "ECDH", namedCurve: "P-256" },
-    true,
-    ["deriveKey", "deriveBits"]
+    { name: "ECDH", namedCurve: "P-256" }, true, ["deriveKey", "deriveBits"]
   );
   const exportedPub = await window.crypto.subtle.exportKey("jwk", keyPair.publicKey);
   const exportedPriv = await window.crypto.subtle.exportKey("jwk", keyPair.privateKey);
@@ -378,9 +418,7 @@ async function loadKeys() {
     );
     myKeys = { privateKey };
     return true;
-  } catch (e) {
-    return false;
-  }
+  } catch (e) { return false; }
 }
 
 async function encryptMessage(text, targetPublicKeyJwk) {
@@ -389,18 +427,13 @@ async function encryptMessage(text, targetPublicKeyJwk) {
     "jwk", targetPubJwk, { name: "ECDH", namedCurve: "P-256" }, true, []
   );
   const sharedKey = await window.crypto.subtle.deriveKey(
-    { name: "ECDH", public: targetPubKey },
-    myKeys.privateKey,
-    { name: "AES-GCM", length: 256 },
-    true,
-    ["encrypt"]
+    { name: "ECDH", public: targetPubKey }, myKeys.privateKey,
+    { name: "AES-GCM", length: 256 }, true, ["encrypt"]
   );
   const iv = window.crypto.getRandomValues(new Uint8Array(12));
   const encoded = new TextEncoder().encode(text);
   const ciphertext = await window.crypto.subtle.encrypt(
-    { name: "AES-GCM", iv: iv },
-    sharedKey,
-    encoded
+    { name: "AES-GCM", iv: iv }, sharedKey, encoded
   );
   return {
     ciphertext: btoa(String.fromCharCode(...new Uint8Array(ciphertext))),
@@ -415,25 +448,51 @@ async function decryptMessage(ciphertextB64, ivB64, senderPublicKeyJwk) {
       "jwk", senderPubJwk, { name: "ECDH", namedCurve: "P-256" }, true, []
     );
     const sharedKey = await window.crypto.subtle.deriveKey(
-      { name: "ECDH", public: senderPubKey },
-      myKeys.privateKey,
-      { name: "AES-GCM", length: 256 },
-      true,
-      ["decrypt"]
+      { name: "ECDH", public: senderPubKey }, myKeys.privateKey,
+      { name: "AES-GCM", length: 256 }, true, ["decrypt"]
     );
     const ciphertext = Uint8Array.from(atob(ciphertextB64), c => c.charCodeAt(0));
     const iv = Uint8Array.from(atob(ivB64), c => c.charCodeAt(0));
     const decrypted = await window.crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: iv },
-      sharedKey,
-      ciphertext
+      { name: "AES-GCM", iv: iv }, sharedKey, ciphertext
     );
     return new TextDecoder().decode(decrypted);
-  } catch (e) {
-    return "🔒 [Ошибка расшифровки]";
+  } catch (e) { return "🔒 [Ошибка расшифровки]"; }
+}
+
+/* ================= САЛЮТ (CONFETTI) ================= */
+function fireConfetti() {
+  const container = $('confetti-container');
+  const colors = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6'];
+  for (let i = 0; i < 30; i++) {
+    const particle = document.createElement('div');
+    particle.style.position = 'absolute';
+    particle.style.width = Math.random() * 8 + 4 + 'px';
+    particle.style.height = Math.random() * 8 + 4 + 'px';
+    particle.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+    particle.style.left = '50%';
+    particle.style.top = '50%';
+    particle.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+    particle.style.pointerEvents = 'none';
+    
+    const angle = Math.random() * Math.PI * 2;
+    const velocity = Math.random() * 300 + 100;
+    const tx = Math.cos(angle) * velocity;
+    const ty = Math.sin(angle) * velocity;
+    
+    particle.style.transition = 'transform 1s cubic-bezier(0.25, 1, 0.5, 1), opacity 1s';
+    
+    container.appendChild(particle);
+    
+    requestAnimationFrame(() => {
+      particle.style.transform = `translate(${tx}px, ${ty}px) rotate(${Math.random() * 360}deg)`;
+      particle.style.opacity = '0';
+    });
+    
+    setTimeout(() => particle.remove(), 1000);
   }
 }
-/* ========================================================= */
+/* ==================================================== */
 
 async function api(path, data) {
   const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
@@ -463,10 +522,7 @@ async function start() {
   renderAvatar($('me-avatar'), me.username, me.avatar);
 
   const hasKeys = await loadKeys();
-  if (!hasKeys) {
-    console.log('Генерация новых ключей E2EE...');
-    await generateKeys();
-  }
+  if (!hasKeys) await generateKeys();
 
   socket = io({ auth: { token } });
 
@@ -542,7 +598,6 @@ function setupSettings() {
   $('exportKeyBtn').onclick = () => {
     const privKey = localStorage.getItem(LS_PRIVATE_KEY);
     if (!privKey) return alert('Ключ не найден');
-    
     const blob = new Blob([privKey], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -563,12 +618,26 @@ function setupSettings() {
         localStorage.setItem(LS_PRIVATE_KEY, privJwkStr);
         alert('Ключ загружен! Перезагрузка страницы...');
         location.reload();
-      } catch (err) {
-        alert('Неверный файл ключа');
-      }
+      } catch (err) { alert('Неверный файл ключа'); }
     };
     reader.readAsText(file);
   };
+
+  // --- СМЕНА ТЕМЫ ---
+  const currentTheme = localStorage.getItem('pm_theme') || 'default';
+  document.body.className = currentTheme === 'default' ? '' : `theme-${currentTheme}`;
+  
+  setTimeout(() => {
+    if ($('themeSelect')) $('themeSelect').value = currentTheme;
+  }, 100);
+
+  if ($('themeSelect')) {
+    $('themeSelect').onchange = (e) => {
+      const theme = e.target.value;
+      document.body.className = theme === 'default' ? '' : `theme-${theme}`;
+      localStorage.setItem('pm_theme', theme);
+    };
+  }
 }
 
 $('avatarInput').onchange = (e) => {
@@ -644,12 +713,11 @@ $('customStickerInput').onchange = (e) => {
 
 async function sendSticker(url) {
   if (!current) return;
-  // Если стикер кастомный (Base64), шифруем. Если стандартный (URL) - отправляем как есть.
   if (url.startsWith('data:image')) {
     const encrypted = await encryptMessage(url, current.publicKey);
-    socket.emit('message', { toId: current.id, body: encrypted.ciphertext, iv: encrypted.iv, type: 'sticker' }, async (res) => { await renderMessage(res.msg); });
+    socket.emit('message', { toId: current.id, body: encrypted.ciphertext, iv: encrypted.iv, type: 'sticker' }, async (res) => { await renderMessage(res.msg); fireConfetti(); });
   } else {
-    socket.emit('message', { toId: current.id, body: url, type: 'sticker' }, async (res) => { await renderMessage(res.msg); });
+    socket.emit('message', { toId: current.id, body: url, type: 'sticker' }, async (res) => { await renderMessage(res.msg); fireConfetti(); });
   }
 }
 
@@ -696,11 +764,10 @@ function setupAudioRecording() {
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
         reader.onloadend = async () => {
-          // Шифруем аудио!
           const encrypted = await encryptMessage(reader.result, current.publicKey);
           socket.emit('message', { toId: current.id, body: encrypted.ciphertext, iv: encrypted.iv, type: 'audio' }, async (res) => { 
             if (res && res.error) alert('Ошибка отправки: ' + res.error);
-            else await renderMessage(res.msg); 
+            else { await renderMessage(res.msg); fireConfetti(); }
           });
         };
         stream.getTracks().forEach(track => track.stop());
@@ -724,7 +791,7 @@ $('form').onsubmit = async (e) => {
   const body = $('input').value.trim();
   if (!body || !current) return;
   
-  if (!current.publicKey) return alert('У собеседника нет ключа шифрования. Попросите его зайти в мессенджер (ключ генерируется автоматически).');
+  if (!current.publicKey) return alert('У собеседника нет ключа шифрования.');
   
   const encrypted = await encryptMessage(body, current.publicKey);
   
@@ -732,6 +799,7 @@ $('form').onsubmit = async (e) => {
     if (res && res.error) return alert(res.error);
     await renderMessage(res.msg);
     socket.emit('typing', { toId: current.id, isTyping: false });
+    fireConfetti(); // Салют при отправке текста!
   });
   $('input').value = '';
 };
@@ -757,7 +825,6 @@ async function renderMessage(m) {
     d.appendChild(timeSpan);
   } else {
     d.className = 'msg' + (m.fromId === me.id ? ' me' : '');
-    
     let content = m.body;
     let isEncrypted = !!m.iv;
     
@@ -765,9 +832,7 @@ async function renderMessage(m) {
       const sender = usersList.find(u => u.id === m.fromId);
       if (sender && sender.publicKey) {
         content = await decryptMessage(m.body, m.iv, sender.publicKey);
-      } else {
-        content = "🔒 [Нет ключа отправителя]";
-      }
+      } else { content = "🔒 [Нет ключа отправителя]"; }
     }
     
     if (m.type === 'sticker') {

@@ -1,6 +1,6 @@
 {
-  "name": "private-messenger",
-  "version": "1.0.0",
+  "name": "secure-messenger",
+  "version": "2.0.0",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

@@ -59,7 +59,7 @@ async function initDB() {
         id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, type TEXT DEFAULT 'group',
         avatar TEXT, members TEXT DEFAULT '[]', admins TEXT DEFAULT '[]', createdAt INTEGER NOT NULL
     )`);
-    console.log('✅ Таблицы Turso готовы (Users, Messages, Groups)');
+    console.log('✅ Таблицы Turso готовы');
   } catch (e) { console.error('❌ Ошибка БД:', e.message); }
 }
 initDB();
@@ -107,6 +107,24 @@ app.post('/api/avatar', async (req, res) => {
   } catch (e) { res.status(401).json({ error: 'Ошибка' }); }
 });
 
+app.post('/api/change-password', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: 'Нет токена' });
+    const payload = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+    const userRes = await dbQuery('SELECT * FROM users WHERE id = ?', [payload.id]);
+    const user = userRes.rows[0];
+    
+    if (!user) return res.status(404).json({ error: 'Пользователь не найден. Выйдите и зарегистрируйтесь заново.' });
+    if (!bcrypt.compareSync(req.body.oldPassword, user.passwordHash))
+      return res.status(400).json({ error: 'Неверный текущий пароль' });
+
+    const newHash = bcrypt.hashSync(req.body.newPassword, 10);
+    await dbQuery('UPDATE users SET passwordHash = ? WHERE id = ?', [newHash, payload.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(401).json({ error: 'Ошибка сессии: ' + e.message }); }
+});
+
 const server = http.createServer(app);
 const io = new Server(server, { maxHttpBufferSize: 2e7 });
 
@@ -152,9 +170,34 @@ io.on('connection', async (socket) => {
       const members = [...new Set([me.id, ...memberIds])];
       const result = await dbQuery('INSERT INTO groups (name, type, members, admins, createdAt) VALUES (?, ?, ?, ?, ?)',
         [name, type, JSON.stringify(members), JSON.stringify([me.id]), Date.now()]);
-      
       cb({ ok: true, groupId: result.lastInsertRowid });
       io.emit('refresh-data'); 
+    } catch (e) { cb({ error: e.message }); }
+  });
+
+  socket.on('add-contact', async ({ username }, cb) => {
+    try {
+      const targetRes = await dbQuery('SELECT * FROM users WHERE LOWER(username) = LOWER(?)', [String(username || '').trim()]);
+      const target = targetRes.rows[0];
+      const meRes = await dbQuery('SELECT * FROM users WHERE id = ?', [me.id]);
+      const meUser = meRes.rows[0];
+
+      if (!target) return cb({ error: 'Пользователь не найден' });
+      if (target.id === me.id) return cb({ error: 'Это вы' });
+      
+      const myContacts = JSON.parse(meUser.contacts || '[]');
+      if (myContacts.includes(target.id)) return cb({ error: 'Уже в контактах' });
+
+      myContacts.push(target.id);
+      await dbQuery('UPDATE users SET contacts = ? WHERE id = ?', [JSON.stringify(myContacts), me.id]);
+
+      const targetContacts = JSON.parse(target.contacts || '[]');
+      if (!targetContacts.includes(me.id)) {
+        targetContacts.push(me.id);
+        await dbQuery('UPDATE users SET contacts = ? WHERE id = ?', [JSON.stringify(targetContacts), target.id]);
+      }
+      cb({ ok: true });
+      io.emit('refresh-data');
     } catch (e) { cb({ error: e.message }); }
   });
 
@@ -181,8 +224,8 @@ io.on('connection', async (socket) => {
       const msg = { id: result.lastInsertRowid, fromId: me.id, username: me.username, toId, groupId, body, iv, type: type || 'text', read: false, createdAt: Date.now() };
 
       if (isGroup) {
-        const group = (await dbQuery('SELECT members FROM groups WHERE id = ?', [groupId])).rows[0];
-        const members = JSON.parse(group.members);
+        const groupRes = await dbQuery('SELECT members FROM groups WHERE id = ?', [groupId]);
+        const members = JSON.parse(groupRes.rows[0].members);
         members.forEach(uid => {
           const set = online.get(uid);
           if (set) for (const sid of set) io.to(sid).emit('message', msg);
@@ -199,32 +242,23 @@ io.on('connection', async (socket) => {
     } catch (e) { if (ack) ack({ error: e.message }); }
   });
 
-  /* ================= ГРУППОВЫЕ ЗВОНКИ (MESH WEBRTC) ================= */
-  // Храним активные звонки: { groupId: Set(userId) }
+  // ГРУППОВЫЕ ЗВОНКИ
   const activeCalls = new Map(); 
-
   socket.on('join-call', async ({ groupId }) => {
     if (!activeCalls.has(groupId)) activeCalls.set(groupId, new Set());
     const callPeers = activeCalls.get(groupId);
-    
-    // Отправляем новому участнику список тех, кто уже в звонке
     socket.emit('call-peers', { peers: [...callPeers] });
-    
-    // Оповещаем остальных, что пришел новый участник
     callPeers.forEach(uid => {
       const set = online.get(uid);
       if (set) for (const sid of set) io.to(sid).emit('peer-joined', { peerId: me.id, username: me.username });
     });
-    
     callPeers.add(me.id);
     socket.join(`call-${groupId}`);
   });
-
   socket.on('call-signal', ({ toId, signal }) => {
     const set = online.get(toId);
     if (set) for (const sid of set) io.to(sid).emit('call-signal', { fromId: me.id, signal });
   });
-
   socket.on('leave-call', ({ groupId }) => {
     if (activeCalls.has(groupId)) {
       const callPeers = activeCalls.get(groupId);
@@ -236,7 +270,6 @@ io.on('connection', async (socket) => {
       });
     }
   });
-  /* ================================================================= */
 
   socket.on('disconnect', () => {
     const set = online.get(me.id);
@@ -246,5 +279,5 @@ io.on('connection', async (socket) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n✅ Сервер с Turso + Группами запущен на порту ${PORT}\n`);
+  console.log(`\n✅ Сервер запущен на порту ${PORT}\n`);
 });

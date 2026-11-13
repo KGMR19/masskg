@@ -7,8 +7,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root { --bg-base: #0b0f19; --bg-panel: #111827; --bg-hover: #1f2937; --bg-input: #1f2937; --text-main: #f3f4f6; --text-muted: #9ca3af; --accent: #6366f1; --accent-hover: #4f46e5; --accent-light: #818cf8; --border-color: #374151; --danger: #ef4444; --success: #10b981; --bubble-me: linear-gradient(135deg, #6366f1, #8b5cf6); --bubble-other: #1f2937; }
-  
-  /* ТЕМЫ */
   body.theme-blue { --bg-base: #0f172a; --bg-panel: #1e293b; --bg-hover: #334155; --bg-input: #0f172a; --text-main: #f8fafc; --text-muted: #94a3b8; --accent: #3b82f6; --accent-hover: #2563eb; --accent-light: #60a5fa; --border-color: #334155; --bubble-me: linear-gradient(135deg, #3b82f6, #06b6d4); --bubble-other: #1e293b; }
   body.theme-red { --bg-base: #1a0b0b; --bg-panel: #291111; --bg-hover: #3d1919; --bg-input: #1a0b0b; --text-main: #fef2f2; --text-muted: #fca5a5; --accent: #ef4444; --accent-hover: #dc2626; --accent-light: #f87171; --border-color: #451a1a; --bubble-me: linear-gradient(135deg, #ef4444, #f97316); --bubble-other: #291111; }
   body.theme-gray { --bg-base: #1f2937; --bg-panel: #374151; --bg-hover: #4b5563; --bg-input: #111827; --text-main: #f9fafb; --text-muted: #9ca3af; --accent: #9ca3af; --accent-hover: #6b7280; --accent-light: #d1d5db; --border-color: #4b5563; --bubble-me: linear-gradient(135deg, #6b7280, #4b5563); --bubble-other: #374151; }
@@ -351,11 +349,11 @@ async function encryptMessage(text, targetPublicKeyJwk) {
   return { ciphertext: btoa(String.fromCharCode(...new Uint8Array(ciphertext))), iv: btoa(String.fromCharCode(...iv)) };
 }
 
-async function decryptMessage(ciphertextB64, ivB64, senderPublicKeyJwk) {
+async function decryptMessage(ciphertextB64, ivB64, otherPublicKeyJwk) {
   try {
-    const senderPubJwk = JSON.parse(senderPublicKeyJwk);
-    const senderPubKey = await window.crypto.subtle.importKey("jwk", senderPubJwk, { name: "ECDH", namedCurve: "P-256" }, true, []);
-    const sharedKey = await window.crypto.subtle.deriveKey({ name: "ECDH", public: senderPubKey }, myKeys.privateKey, { name: "AES-GCM", length: 256 }, true, ["decrypt"]);
+    const otherPubJwk = JSON.parse(otherPublicKeyJwk);
+    const otherPubKey = await window.crypto.subtle.importKey("jwk", otherPubJwk, { name: "ECDH", namedCurve: "P-256" }, true, []);
+    const sharedKey = await window.crypto.subtle.deriveKey({ name: "ECDH", public: otherPubKey }, myKeys.privateKey, { name: "AES-GCM", length: 256 }, true, ["decrypt"]);
     const ciphertext = Uint8Array.from(atob(ciphertextB64), c => c.charCodeAt(0));
     const iv = Uint8Array.from(atob(ivB64), c => c.charCodeAt(0));
     const decrypted = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, sharedKey, ciphertext);
@@ -485,7 +483,19 @@ async function renderMessage(m) {
   else if (m.type === 'audio' && !m.iv) { d.className = 'msg audio' + (m.fromId === me.id ? ' me' : ''); d.innerHTML = `<audio controls src="${m.body}"></audio>`; const t = document.createElement('span'); t.className = 't'; t.innerHTML = new Date(m.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}); if (m.fromId === me.id) { const ticks = document.createElement('span'); ticks.className = 'ticks' + (m.read ? ' read' : ''); ticks.textContent = m.read ? '✓✓' : '✓'; t.appendChild(ticks); } d.appendChild(t); }
   else {
     d.className = 'msg' + (m.fromId === me.id ? ' me' : ''); let content = m.body; let isEncrypted = !!m.iv;
-    if (isEncrypted) { const sender = usersList.find(u => u.id === m.fromId); if (sender && sender.publicKey) content = await decryptMessage(m.body, m.iv, sender.publicKey); else content = "🔒 [Нет ключа]"; }
+    
+    if (isEncrypted) { 
+      // ФИКС БАГА: Ищем публичный ключ СОБЕСЕДНИКА (кого-то, кто не является нами)
+      const otherId = (m.fromId === me.id) ? m.toId : m.fromId;
+      const otherUser = usersList.find(u => u.id === otherId);
+      
+      if (otherUser && otherUser.publicKey) {
+        content = await decryptMessage(m.body, m.iv, otherUser.publicKey);
+      } else { 
+        content = "🔒 [Нет ключа собеседника]"; 
+      }
+    }
+
     if (m.type === 'sticker') { d.className = 'msg sticker' + (m.fromId === me.id ? ' me' : ''); d.innerHTML = `<img src="${content}" alt="sticker">`; }
     else if (m.type === 'audio') { d.className = 'msg audio' + (m.fromId === me.id ? ' me' : ''); d.innerHTML = `<audio controls src="${content}"></audio>`; const t = document.createElement('span'); t.className = 't'; t.innerHTML = new Date(m.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}); if (m.fromId === me.id) { const ticks = document.createElement('span'); ticks.className = 'ticks' + (m.read ? ' read' : ''); ticks.textContent = m.read ? '✓✓' : '✓'; t.appendChild(ticks); } d.appendChild(t); }
     else { d.innerHTML = `${escapeHtml(content)}`; const t = document.createElement('span'); t.className = 't'; t.innerHTML = new Date(m.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}); if (m.fromId === me.id) { const ticks = document.createElement('span'); ticks.className = 'ticks' + (m.read ? ' read' : ''); ticks.textContent = m.read ? '✓✓' : '✓'; t.appendChild(ticks); } d.appendChild(t); }

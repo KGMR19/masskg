@@ -94,7 +94,12 @@
   #input { flex: 1; padding: 14px 20px; border-radius: 24px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); font-size: 15px; outline: none; }
   #form button[type="submit"] { width: 48px; height: 48px; border-radius: 50%; border: none; background: var(--accent); color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; }
   #form button[type="submit"] svg { width: 20px; height: 20px; margin-left: -2px; }
+  
   #sticker-panel { position: absolute; bottom: 85px; left: 24px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 20px; padding: 16px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; width: 320px; z-index: 100; }
+  #sticker-panel img { width: 100%; cursor: pointer; padding: 4px; border-radius: 12px; transition: 0.1s; }
+  #sticker-panel img:hover { transform: scale(1.15); background: var(--bg-hover); }
+  .custom-sticker-btn { width: 100%; height: 100%; aspect-ratio: 1; border-radius: 12px; border: 2px dashed var(--border-color); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); font-size: 28px; transition: 0.2s; }
+  .custom-sticker-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(99, 102, 241, 0.1); }
 
   .settings-tabs { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
   .settings-tab { background: transparent; border: none; color: var(--text-muted); padding: 8px 16px; cursor: pointer; font-size: 15px; border-radius: 8px; }
@@ -128,6 +133,9 @@
 </style>
 </head>
 <body>
+
+<!-- Контейнер для салюта -->
+<div id="confetti-container" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 9999; overflow: hidden;"></div>
 
 <div id="auth">
   <h1>Secure Messenger</h1>
@@ -315,6 +323,22 @@ async function decryptMsg(ctB64, ivB64, pubKeyJwk) {
   } catch { return "🔒 [Зашифровано]"; }
 }
 
+// --- САЛЮТ (CONFETTI) ---
+function fireConfetti() {
+  const container = $('confetti-container'), colors = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6'];
+  for (let i = 0; i < 30; i++) {
+    const particle = document.createElement('div');
+    particle.style.position = 'absolute'; particle.style.width = Math.random() * 8 + 4 + 'px'; particle.style.height = Math.random() * 8 + 4 + 'px';
+    particle.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+    particle.style.left = '50%'; particle.style.top = '50%'; particle.style.borderRadius = Math.random() > 0.5 ? '50%' : '0'; particle.style.pointerEvents = 'none';
+    const angle = Math.random() * Math.PI * 2, velocity = Math.random() * 300 + 100;
+    particle.style.transition = 'transform 1s cubic-bezier(0.25, 1, 0.5, 1), opacity 1s';
+    container.appendChild(particle);
+    requestAnimationFrame(() => { particle.style.transform = `translate(${Math.cos(angle) * velocity}px, ${Math.sin(angle) * velocity}px) rotate(${Math.random() * 360}deg)`; particle.style.opacity = '0'; });
+    setTimeout(() => particle.remove(), 1000);
+  }
+}
+
 async function api(path, data) {
   const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
   const j = await r.json(); if (!r.ok) throw new Error(j.error); return j;
@@ -364,6 +388,8 @@ async function start() {
 
   const currentTheme = localStorage.getItem('pm_theme') || 'default';
   document.body.className = currentTheme === 'default' ? '' : `theme-${currentTheme}`;
+  
+  initStickers(); // <--- ВОЗВРАЩАЕМ ИНИЦИАЛИЗАЦИЮ СТИКЕРОВ
 }
 
 function renderAvatar(container, username, avatarBase64) {
@@ -376,6 +402,60 @@ function renderAvatar(container, username, avatarBase64) {
     container.textContent = username.charAt(0).toUpperCase();
   }
 }
+
+/* --- СТИКЕРЫ --- */
+const STICKERS = ['1f602','2764_fe0f','1f44d','1f525','1f62d','1f621','1f973','1f914','1f634','1f92f','1f929','1f648'];
+function initStickers() { 
+  const panel = $('sticker-panel'); 
+  STICKERS.forEach(code => { 
+    const img = document.createElement('img'); 
+    img.src = `https://fonts.gstatic.com/s/e/notoemoji/latest/${code}/512.gif`; 
+    img.onclick = () => { sendSticker(img.src); panel.classList.add('hidden'); }; 
+    panel.appendChild(img); 
+  }); 
+  const addBtn = document.createElement('div'); 
+  addBtn.className = 'custom-sticker-btn'; 
+  addBtn.innerHTML = '+'; 
+  addBtn.title = "Загрузить свой стикер"; 
+  addBtn.onclick = () => $('customStickerInput').click(); 
+  panel.appendChild(addBtn); 
+  
+  $('stickerBtn').onclick = (e) => { e.stopPropagation(); panel.classList.toggle('hidden'); }; 
+  document.addEventListener('click', (e) => { if (!panel.contains(e.target) && e.target !== $('stickerBtn')) panel.classList.add('hidden'); }); 
+}
+
+$('customStickerInput').onchange = (e) => { 
+  const file = e.target.files[0]; if (!file) return; 
+  const reader = new FileReader(); 
+  reader.onload = (event) => { 
+    const img = new Image(); 
+    img.onload = () => { 
+      const canvas = document.createElement('canvas'); 
+      const MAX_SIZE = 150; 
+      let width = img.width, height = img.height; 
+      if (width > height) { if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; } } 
+      else { if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; } } 
+      canvas.width = width; canvas.height = height; 
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height); 
+      const base64Str = canvas.toDataURL('image/png'); 
+      sendSticker(base64Str); 
+      $('sticker-panel').classList.add('hidden'); 
+    }; 
+    img.src = event.target.result; 
+  }; 
+  reader.readAsDataURL(file); 
+};
+
+async function sendSticker(url) { 
+  if (!currentChat) return; 
+  if (url.startsWith('data:image')) { 
+    const encrypted = await encryptMsg(url, currentChat.publicKey); 
+    socket.emit('message', { groupId: currentChat.type === 'group' ? currentChat.id : null, toId: currentChat.type === 'user' ? currentChat.id : null, body: encrypted.ciphertext, iv: encrypted.iv, type: 'sticker' }, async (res) => { await renderMessage(res.msg); fireConfetti(); }); 
+  } else { 
+    socket.emit('message', { groupId: currentChat.type === 'group' ? currentChat.id : null, toId: currentChat.type === 'user' ? currentChat.id : null, body: url, type: 'sticker' }, async (res) => { await renderMessage(res.msg); fireConfetti(); }); 
+  } 
+}
+/* --------------- */
 
 $('avatarInput').onchange = (e) => { 
   const file = e.target.files[0]; if (!file) return; 
@@ -441,7 +521,7 @@ function renderLists() {
 $('searchInput').oninput = renderLists;
 
 function openChat(type, data) {
-  currentChat = { type, id: data.id, name: type === 'group' ? data.name : data.username, avatar: data.avatar, members: data.members };
+  currentChat = { type, id: data.id, name: type === 'group' ? data.name : data.username, avatar: data.avatar, members: data.members, publicKey: data.publicKey };
   $('app').classList.add('chat-open');
   $('empty-chat').classList.add('hidden');
   $('chat-view').classList.remove('hidden');
@@ -482,7 +562,13 @@ async function renderMessage(m) {
     }
   }
 
-  d.innerHTML += `${escapeHtml(text)}<span class="t">${new Date(m.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>`;
+  if (m.type === 'sticker') {
+    d.className = 'msg sticker' + (m.fromId === me.id ? ' me' : '');
+    d.innerHTML += `<img src="${text}" alt="sticker">`;
+  } else {
+    d.innerHTML += `${escapeHtml(text)}<span class="t">${new Date(m.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>`;
+  }
+  
   $('messages').appendChild(d);
   $('messages').scrollTop = $('messages').scrollHeight;
 }
@@ -501,6 +587,7 @@ $('form').onsubmit = async (e) => {
 
   socket.emit('message', { groupId: currentChat.type === 'group' ? currentChat.id : null, toId: currentChat.type === 'user' ? currentChat.id : null, body, iv, type: 'text' }, async res => {
     if (res.error) alert(res.error); else await renderMessage(res.msg);
+    fireConfetti();
   });
   $('input').value = '';
 };

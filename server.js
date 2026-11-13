@@ -1,5 +1,3 @@
-require('dotenv').config(); // В Render переменные окружения подтягиваются автоматически
-
 const express = require('express');
 const http = require('http');
 const path = require('path');
@@ -23,15 +21,15 @@ const UserSchema = new mongoose.Schema({
   passwordHash: { type: String, required: true },
   avatar: { type: String, default: null },
   contacts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  publicKey: { type: String, default: null },
+  publicKey: { type: String, default: null }, // Ключ для E2EE
   createdAt: { type: Date, default: Date.now }
 });
 
 const MessageSchema = new mongoose.Schema({
   fromId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   toId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  body: { type: String, required: true },
-  iv: { type: String, default: null },
+  body: { type: String, required: true }, // Зашифрованный текст
+  iv: { type: String, default: null },    // Вектор инициализации
   type: { type: String, default: 'text' },
   read: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now }
@@ -42,7 +40,7 @@ const Message = mongoose.model('Message', MessageSchema);
 
 /* ---------- Подключение к MongoDB ---------- */
 mongoose.connect(MONGODB_URI)
-  .then(() => console.log('✅ Подключено к MongoDB Atlas'))
+  .then(() => console.log('✅ Подключено к MongoDB'))
   .catch(err => { 
     console.error('❌ Ошибка подключения к MongoDB:', err.message); 
     process.exit(1); 
@@ -53,6 +51,7 @@ const app = express();
 app.use(express.json({ limit: '20mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Защита от брутфорса
 const loginAttempts = new Map();
 setInterval(() => loginAttempts.clear(), 15 * 60 * 1000);
 
@@ -124,7 +123,6 @@ app.post('/api/public-key', async (req, res) => {
     const authHeader = req.headers.authorization;
     if (!authHeader) return res.status(401).json({ error: 'Нет токена' });
     const payload = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
-    
     await User.findByIdAndUpdate(payload.id, { publicKey: req.body.publicKey });
     res.json({ ok: true });
   } catch (e) { res.status(401).json({ error: 'Ошибка' }); }
@@ -282,6 +280,7 @@ io.on('connection', (socket) => {
   });
 });
 
-server.listen(PORT, () => {
+// КРИТИЧЕСКИ ВАЖНО: Привязка к 0.0.0.0 для Render!
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`\n✅ Сервер с E2EE запущен на порту ${PORT}\n`);
 });

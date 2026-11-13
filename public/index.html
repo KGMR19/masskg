@@ -7,8 +7,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root { --bg-base: #0b0f19; --bg-panel: #111827; --bg-hover: #1f2937; --bg-input: #1f2937; --text-main: #f3f4f6; --text-muted: #9ca3af; --accent: #6366f1; --accent-hover: #4f46e5; --accent-light: #818cf8; --border-color: #374151; --danger: #ef4444; --success: #10b981; --bubble-me: linear-gradient(135deg, #6366f1, #8b5cf6); --bubble-other: #1f2937; }
-  
-  /* ТЕМЫ */
   body.theme-blue { --bg-base: #0f172a; --bg-panel: #1e293b; --bg-hover: #334155; --bg-input: #0f172a; --text-main: #f8fafc; --text-muted: #94a3b8; --accent: #3b82f6; --accent-hover: #2563eb; --accent-light: #60a5fa; --border-color: #334155; --bubble-me: linear-gradient(135deg, #3b82f6, #06b6d4); --bubble-other: #1e293b; }
   body.theme-red { --bg-base: #1a0b0b; --bg-panel: #291111; --bg-hover: #3d1919; --bg-input: #1a0b0b; --text-main: #fef2f2; --text-muted: #fca5a5; --accent: #ef4444; --accent-hover: #dc2626; --accent-light: #f87171; --border-color: #451a1a; --bubble-me: linear-gradient(135deg, #ef4444, #f97316); --bubble-other: #291111; }
   body.theme-gray { --bg-base: #1f2937; --bg-panel: #374151; --bg-hover: #4b5563; --bg-input: #111827; --text-main: #f9fafb; --text-muted: #9ca3af; --accent: #9ca3af; --accent-hover: #6b7280; --accent-light: #d1d5db; --border-color: #4b5563; --bubble-me: linear-gradient(135deg, #6b7280, #4b5563); --bubble-other: #374151; }
@@ -23,11 +21,8 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-base); color: var(--text-main); height: 100vh; height: 100dvh; overflow: hidden; transition: background 0.3s, color 0.3s; }
   .hidden { display: none !important; }
-
-  /* ИКОНКИ */
   svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
-  /* МОДАЛЬНЫЕ ОКНА */
   .modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 2000; }
   .modal-content { background: var(--bg-panel); width: 90%; max-width: 400px; border-radius: 24px; padding: 32px; border: 1px solid var(--border-color); box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
   .modal-content h2 { font-size: 22px; margin-bottom: 20px; text-align: center; }
@@ -35,7 +30,6 @@
   .modal-content button { width: 100%; padding: 14px; background: var(--accent); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 10px; }
   .modal-content button.cancel { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); }
 
-  /* АВТОРИЗАЦИЯ */
   #auth { max-width: 380px; margin: 10vh auto; padding: 32px; background: var(--bg-panel); border-radius: 24px; border: 1px solid var(--border-color); box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
   #auth h1 { font-size: 28px; margin-bottom: 24px; text-align: center; font-weight: 700; background: var(--bubble-me); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
   #auth input { width: 100%; padding: 14px 16px; margin-bottom: 16px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); font-size: 15px; outline: none; }
@@ -43,7 +37,6 @@
   #auth #reg { background: transparent; border: 1px solid var(--border-color); }
   #err { color: #f87171; font-size: 14px; text-align: center; margin-top: 16px; min-height: 20px; }
 
-  /* ИНТЕРФЕЙС */
   #app { display: grid; grid-template-columns: 340px 1fr; height: 100%; width: 100vw; }
   aside { background: var(--bg-panel); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; height: 100%; }
   aside header { padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); }
@@ -73,7 +66,6 @@
   .dot { width: 10px; height: 10px; border-radius: 50%; background: #4b5563; border: 2px solid var(--bg-panel); }
   .dot.on { background: var(--success); box-shadow: 0 0 8px var(--success); }
 
-  /* ЧАТ */
   main { display: flex; flex-direction: column; height: 100%; background: var(--bg-base); position: relative; }
   #empty-chat { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); }
   main header { padding: 16px 24px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; background: var(--bg-panel); }
@@ -104,7 +96,6 @@
   #form button[type="submit"] svg { width: 20px; height: 20px; margin-left: -2px; }
   #sticker-panel { position: absolute; bottom: 85px; left: 24px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 20px; padding: 16px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; width: 320px; z-index: 100; }
 
-  /* НАСТРОЙКИ */
   .settings-tabs { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
   .settings-tab { background: transparent; border: none; color: var(--text-muted); padding: 8px 16px; cursor: pointer; font-size: 15px; border-radius: 8px; }
   .settings-tab.active { background: var(--bg-hover); color: var(--text-main); font-weight: 600; }
@@ -117,7 +108,6 @@
   .form-group input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); margin-top: 6px; }
   .btn-save { width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
 
-  /* ГРУППОВОЙ ЗВОНОК */
   #call-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000; display: flex; flex-direction: column; z-index: 4000; }
   #video-grid { flex: 1; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; padding: 10px; align-content: center; justify-content: center; }
   .video-wrapper { position: relative; background: #111; border-radius: 16px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
@@ -164,15 +154,12 @@
         </div>
       </div>
       <div class="header-actions">
-        <!-- Иконка добавить контакт -->
         <button id="addBtn" title="Добавить контакт">
           <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="22" y1="11" x2="16" y2="11"></line></svg>
         </button>
-        <!-- Иконка создать группу -->
         <button id="createGroupBtn" title="Создать группу">
           <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
         </button>
-        <!-- Иконка настройки -->
         <button id="settingsBtn" title="Настройки">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
         </button>
@@ -200,7 +187,6 @@
 
     <div id="chat-view" class="hidden" style="display:flex; flex-direction:column; height:100%;">
       <header>
-        <!-- Иконка закрыть чат -->
         <button class="icon-btn close-chat-btn" id="closeChatBtn" title="Закрыть чат">
           <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
@@ -211,7 +197,6 @@
           </div>
         </div>
         <div class="call-actions">
-          <!-- Иконка позвонить -->
           <button id="startCallBtn" title="Позвонить">
             <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
           </button>
@@ -220,12 +205,10 @@
       <div id="messages"></div>
       
       <form id="form" class="hidden">
-        <!-- Иконка стикеры -->
         <button type="button" id="stickerBtn" class="icon-btn">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
         </button>
         <input id="input" autocomplete="off" placeholder="Сообщение..." />
-        <!-- Иконка отправить -->
         <button type="submit">
           <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
         </button>
@@ -235,7 +218,6 @@
   </main>
 </div>
 
-<!-- МОДАЛКА ДОБАВЛЕНИЯ КОНТАКТА -->
 <div id="add-contact-modal" class="modal hidden">
   <div class="modal-content">
     <h2>Добавить контакт</h2>
@@ -245,7 +227,6 @@
   </div>
 </div>
 
-<!-- МОДАЛКА СОЗДАНИЯ ГРУППЫ -->
 <div id="create-group-modal" class="modal hidden">
   <div class="modal-content">
     <h2>Создать группу</h2>
@@ -259,7 +240,6 @@
   </div>
 </div>
 
-<!-- НАСТРОЙКИ -->
 <div id="settings-modal" class="modal hidden">
   <div class="modal-content">
     <h2>Настройки</h2>
@@ -290,7 +270,6 @@
   </div>
 </div>
 
-<!-- ЭКРАН ЗВОНКА -->
 <div id="call-overlay" class="hidden">
   <div id="video-grid"></div>
   <div id="call-controls-bar">
@@ -359,8 +338,6 @@ async function start() {
   $('auth').classList.add('hidden'); $('app').classList.remove('hidden');
   $('me').textContent = me.username;
   if (!(await loadKeys())) await generateKeys();
-
-  // Принудительно очищаем строку поиска от автозаполнения браузера
   $('searchInput').value = ''; 
 
   socket = io({ auth: { token } });
@@ -375,7 +352,6 @@ async function start() {
     }
   });
 
-  // Звонки
   socket.on('call-peers', ({ peers }) => { peers.forEach(pid => createPeerConnection(pid, true)); });
   socket.on('peer-joined', ({ peerId }) => { createPeerConnection(peerId, false); });
   socket.on('call-signal', async ({ fromId, signal }) => {
@@ -385,7 +361,6 @@ async function start() {
   });
   socket.on('peer-left', ({ peerId }) => { if (peers[peerId]) { peers[peerId].close(); delete peers[peerId]; $(`wrapper-${peerId}`)?.remove(); } });
 
-  // Настройки темы
   const currentTheme = localStorage.getItem('pm_theme') || 'default';
   document.body.className = currentTheme === 'default' ? '' : `theme-${currentTheme}`;
 }
@@ -483,7 +458,6 @@ $('form').onsubmit = async (e) => {
   $('input').value = '';
 };
 
-/* --- UI ОКНА --- */
 $('settingsBtn').onclick = () => $('settings-modal').classList.remove('hidden');
 $('closeSettingsBtn').onclick = () => $('settings-modal').classList.add('hidden');
 $('myProfileBtn').onclick = () => $('settings-modal').classList.remove('hidden');
@@ -507,7 +481,6 @@ $('submitCreateGroup').onclick = () => {
   });
 };
 
-// Настройки - Вкладки и темы
 document.querySelectorAll('.settings-tab').forEach(tab => { tab.onclick = () => { document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active')); document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); tab.classList.add('active'); $(tab.dataset.tab).classList.add('active'); }; });
 const currentTheme = localStorage.getItem('pm_theme') || 'default';
 setTimeout(() => { if ($('themeSelect')) $('themeSelect').value = currentTheme; }, 100);
@@ -519,11 +492,12 @@ $('changePasswordBtn').onclick = async () => {
   try {
     const res = await fetch('/api/change-password', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ oldPassword: oldP, newPassword: newP }) });
     const data = await res.json();
-    if (data.ok) { alert('Пароль изменен!'); $('oldPassword').value = ''; $('newPassword').value = ''; } else alert(data.error);
-  } catch (e) { alert('Ошибка'); }
+    if (res.ok) { alert('Пароль изменен!'); $('oldPassword').value = ''; $('newPassword').value = ''; } 
+    else if (res.status === 401 || res.status === 403) { alert('Сессия устарела. Войдите заново.'); localStorage.clear(); location.reload(); }
+    else alert(data.error || 'Ошибка');
+  } catch (e) { alert('Сетевая ошибка: ' + e.message); }
 };
 
-/* --- ЗВОНКИ --- */
 let peers = {}, localStream = null, inCall = false;
 $('startCallBtn').onclick = async () => {
   if (!currentChat) return alert('Выберите чат');

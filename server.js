@@ -10,7 +10,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-key-change-me';
 
 // --- НАСТРОЙКА ПРЯМОГО ПОДКЛЮЧЕНИЯ К TURSO ---
 const TURSO_URL = (process.env.TURSO_DATABASE_URL || '').replace('libsql://', 'https://').replace(/\/$/, '');
-const TURSO_TOKEN = (process.env.TURSO_AUTH_TOKEN || '').trim(); // .trim() убирает пробелы!
+const TURSO_TOKEN = (process.env.TURSO_AUTH_TOKEN || '').trim(); 
 const DB_ENDPOINT = `${TURSO_URL}/v2/pipeline`;
 
 if (!TURSO_URL || !TURSO_TOKEN) {
@@ -20,7 +20,7 @@ if (!TURSO_URL || !TURSO_TOKEN) {
 // Универсальная функция для SQL-запросов
 async function dbQuery(sql, args = []) {
   const formattedArgs = args.map(arg => {
-    if (typeof arg === 'number') return { type: 'integer', value: arg };
+    if (typeof arg === 'number') return { type: 'integer', value: String(arg) }; // <--- ИСПРАВЛЕНО (String)
     if (typeof arg === 'string') return { type: 'text', value: arg };
     if (arg === null) return { type: 'null' };
     return { type: 'text', value: String(arg) };

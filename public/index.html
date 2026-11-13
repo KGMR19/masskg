@@ -377,7 +377,6 @@ function renderAvatar(container, username, avatarBase64) {
   }
 }
 
-/* ИСПРАВЛЕННЫЙ БЛОК СМЕНЫ АВАТАРКИ */
 $('avatarInput').onchange = (e) => { 
   const file = e.target.files[0]; if (!file) return; 
   const reader = new FileReader(); 
@@ -398,10 +397,10 @@ $('avatarInput').onchange = (e) => {
       .then(data => { 
         if (data.ok) { 
           me.avatar = data.avatar; 
-          localStorage.setItem('pm_user', JSON.stringify(me)); // <--- ИСПРАВЛЕНО (было saveSession)
+          localStorage.setItem('pm_user', JSON.stringify(me)); 
           renderAvatar($('me-avatar'), me.username, me.avatar); 
           renderLists(); 
-          if(socket) socket.emit('force-refresh'); // Обновляем у других
+          if(socket) socket.emit('force-refresh'); 
           alert('Аватарка обновлена!');
         } else {
           alert('Ошибка: ' + (data.error || 'неизвестно'));

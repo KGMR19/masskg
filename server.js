@@ -9,15 +9,24 @@ const { createClient } = require('@libsql/client');
 const PORT = Number(process.env.PORT) || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-key-change-me';
 
-// Подключение к Turso
+// Проверка наличия переменных
+if (!process.env.TURSO_DATABASE_URL || !process.env.TURSO_AUTH_TOKEN) {
+  console.error('❌ Не заданы переменные TURSO_DATABASE_URL или TURSO_AUTH_TOKEN');
+}
+
+// Подключение к Turso (автоматически меняем libsql:// на https:// для стабильности на Render)
+const dbUrl = (process.env.TURSO_DATABASE_URL || '').replace('libsql://', 'https://');
+
 const db = createClient({
-  url: process.env.TURSO_DATABASE_URL,
+  url: dbUrl,
   authToken: process.env.TURSO_AUTH_TOKEN,
 });
 
 // Инициализация таблиц при запуске
 async function initDB() {
   try {
+    console.log('🔄 Подключение к Turso...');
+    
     await db.execute(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -29,6 +38,7 @@ async function initDB() {
         createdAt INTEGER NOT NULL
       )
     `);
+    
     await db.execute(`
       CREATE TABLE IF NOT EXISTS messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -41,9 +51,10 @@ async function initDB() {
         createdAt INTEGER NOT NULL
       )
     `);
-    console.log('✅ Таблицы Turso готовы');
+    
+    console.log('✅ Таблицы Turso успешно готовы');
   } catch (e) {
-    console.error('❌ Ошибка инициализации Turso:', e);
+    console.error('❌ Ошибка инициализации Turso:', e.message);
   }
 }
 initDB();
@@ -204,8 +215,8 @@ io.on('connection', async (socket) => {
       }
 
       cb({ ok: true });
-      io.to([...online.get(me.id) || []]).emit('users', await getContactsList(me.id));
-      io.to([...online.get(target.id) || []]).emit('users', await getContactsList(target.id));
+      if (online.has(me.id)) io.to([...online.get(me.id)]).emit('users', await getContactsList(me.id));
+      if (online.has(target.id)) io.to([...online.get(target.id)]).emit('users', await getContactsList(target.id));
     } catch (e) { cb({ error: e.message }); }
   });
 
@@ -261,7 +272,7 @@ io.on('connection', async (socket) => {
     if (targetSockets) for (const sid of targetSockets) io.to(sid).emit('messages-read');
   });
 
-  // Звонки (без изменений)
+  // Звонки
   socket.on('call-user', ({ toId, offer, type }) => { const t = online.get(Number(toId)); if (t) for (const sid of t) io.to(sid).emit('incoming-call', { fromId: me.id, fromName: me.username, offer, type }); });
   socket.on('answer-call', ({ toId, answer }) => { const t = online.get(Number(toId)); if (t) for (const sid of t) io.to(sid).emit('call-answered', { answer }); });
   socket.on('ice-candidate', ({ toId, candidate }) => { const t = online.get(Number(toId)); if (t) for (const sid of t) io.to(sid).emit('ice-candidate', { candidate }); });

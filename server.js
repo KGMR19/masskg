@@ -1,108 +1,142 @@
 const express = require('express');
 const http = require('http');
 const path = require('path');
-const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { Server } = require('socket.io');
+const { createClient } = require('@libsql/client');
 
 const PORT = Number(process.env.PORT) || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-key-change-me';
-const DATA_FILE = path.join(__dirname, 'data.json');
 
-/* ---------- Хранилище ---------- */
-let state = { nextUserId: 1, nextMsgId: 1, users: [], messages: [] };
-if (fs.existsSync(DATA_FILE)) {
-  try { state = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); }
-  catch (e) { console.error('⚠ data.json повреждён, начинаю с пустой БД:', e.message); }
+// Подключение к Turso
+const db = createClient({
+  url: process.env.TURSO_DATABASE_URL,
+  authToken: process.env.TURSO_AUTH_TOKEN,
+});
+
+// Инициализация таблиц при запуске
+async function initDB() {
+  try {
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        passwordHash TEXT NOT NULL,
+        avatar TEXT,
+        publicKey TEXT,
+        contacts TEXT DEFAULT '[]',
+        createdAt INTEGER NOT NULL
+      )
+    `);
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fromId INTEGER NOT NULL,
+        toId INTEGER NOT NULL,
+        body TEXT NOT NULL,
+        iv TEXT,
+        type TEXT DEFAULT 'text',
+        read INTEGER DEFAULT 0,
+        createdAt INTEGER NOT NULL
+      )
+    `);
+    console.log('✅ Таблицы Turso готовы');
+  } catch (e) {
+    console.error('❌ Ошибка инициализации Turso:', e);
+  }
 }
-
-// Гарантируем наличие массивов
-if (!state.users) state.users = [];
-if (!state.messages) state.messages = [];
-
-let saveTimer = null;
-function persist() {
-  if (saveTimer) return;
-  saveTimer = setTimeout(() => {
-    saveTimer = null;
-    try { fs.writeFileSync(DATA_FILE, JSON.stringify(state)); }
-    catch (e) { console.error('Ошибка записи в файл:', e); }
-  }, 100);
-}
-
-// УМНЫЙ ПОИСК (без учета регистра и пробелов)
-const findUserByName = (u) => {
-  if (!u) return null;
-  return state.users.find(x => x.username.toLowerCase() === u.toLowerCase().trim());
-};
-const findUserById = (id) => state.users.find(x => x.id === Number(id));
+initDB();
 
 /* ---------- HTTP ---------- */
 const app = express();
 app.use(express.json({ limit: '20mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.get('/api/health', (_, res) => res.json({ ok: true, users: state.users.length }));
+const loginAttempts = new Map();
+setInterval(() => loginAttempts.clear(), 15 * 60 * 1000);
 
-app.post('/api/register', (req, res) => {
-  const { username, password } = req.body || {};
-  if (!username || !password) return res.status(400).json({ error: 'Нужны логин и пароль' });
-  
-  const u = username.trim();
-  if (u.length < 3) return res.status(400).json({ error: 'Логин — минимум 3 символа' });
-  if (password.length < 6) return res.status(400).json({ error: 'Пароль — минимум 6 символов' });
-  if (findUserByName(u)) return res.status(409).json({ error: 'Такой логин уже занят' });
-
-  const user = { 
-    id: state.nextUserId++, username: u, passwordHash: bcrypt.hashSync(password, 10), 
-    createdAt: Date.now(), contacts: [], avatar: null, publicKey: null
-  };
-  state.users.push(user);
-  persist();
-
-  const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
-  res.json({ token, user: { id: user.id, username: user.username, avatar: user.avatar, publicKey: user.publicKey } });
+app.get('/api/health', async (_, res) => {
+  try {
+    const users = await db.execute('SELECT COUNT(*) as c FROM users');
+    res.json({ ok: true, users: users.rows[0].c });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/login', (req, res) => {
-  const { username, password } = req.body || {};
-  const user = findUserByName(String(username || ''));
-  if (!user || !bcrypt.compareSync(String(password || ''), user.passwordHash))
-    return res.status(401).json({ error: 'Неверный логин или пароль' });
+app.post('/api/register', async (req, res) => {
+  try {
+    const { username, password } = req.body || {};
+    if (!username || !password) return res.status(400).json({ error: 'Нужны логин и пароль' });
+    const u = username.trim();
+    if (u.length < 3) return res.status(400).json({ error: 'Логин — минимум 3 символа' });
+    if (password.length < 6) return res.status(400).json({ error: 'Пароль — минимум 6 символов' });
 
-  const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
-  res.json({ token, user: { id: user.id, username: user.username, avatar: user.avatar, publicKey: user.publicKey } });
+    const hash = bcrypt.hashSync(password, 10);
+    const result = await db.execute({
+      sql: 'INSERT INTO users (username, passwordHash, createdAt) VALUES (?, ?, ?)',
+      args: [u, hash, Date.now()]
+    });
+
+    const user = { id: Number(result.lastInsertRowid), username: u, avatar: null, publicKey: null };
+    const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, user });
+  } catch (e) {
+    if (e.message.includes('UNIQUE')) return res.status(409).json({ error: 'Логин занят' });
+    res.status(500).json({ error: e.message });
+  }
 });
 
-app.post('/api/change-password', (req, res) => {
+app.post('/api/login', async (req, res) => {
+  try {
+    const { username, password } = req.body || {};
+    const ip = req.ip;
+    if ((loginAttempts.get(ip) || 0) > 10) return res.status(429).json({ error: 'Слишком много попыток.' });
+
+    const result = await db.execute({
+      sql: 'SELECT * FROM users WHERE username = ?',
+      args: [String(username || '').trim()]
+    });
+    
+    const user = result.rows[0];
+    if (!user || !bcrypt.compareSync(String(password || ''), user.passwordHash)) {
+      loginAttempts.set(ip, (loginAttempts.get(ip) || 0) + 1);
+      return res.status(401).json({ error: 'Неверный логин или пароль' });
+    }
+
+    loginAttempts.delete(ip);
+    const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, user: { id: user.id, username: user.username, avatar: user.avatar, publicKey: user.publicKey } });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/change-password', async (req, res) => {
   try {
     const payload = jwt.verify(req.headers.authorization.split(' ')[1], JWT_SECRET);
-    const user = findUserById(payload.id);
+    const userRes = await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [payload.id] });
+    const user = userRes.rows[0];
+    
     if (!user || !bcrypt.compareSync(req.body.oldPassword, user.passwordHash))
       return res.status(400).json({ error: 'Неверный текущий пароль' });
-    
-    user.passwordHash = bcrypt.hashSync(req.body.newPassword, 10);
-    persist();
-    res.json({ ok: true });
-  } catch (e) { res.status(401).json({ error: 'Ошибка авторизации' }); }
-});
 
-app.post('/api/public-key', (req, res) => {
-  try {
-    const payload = jwt.verify(req.headers.authorization.split(' ')[1], JWT_SECRET);
-    const user = findUserById(payload.id);
-    if (user) { user.publicKey = req.body.publicKey; persist(); }
+    const newHash = bcrypt.hashSync(req.body.newPassword, 10);
+    await db.execute({ sql: 'UPDATE users SET passwordHash = ? WHERE id = ?', args: [newHash, payload.id] });
     res.json({ ok: true });
   } catch (e) { res.status(401).json({ error: 'Ошибка' }); }
 });
 
-app.post('/api/avatar', (req, res) => {
+app.post('/api/public-key', async (req, res) => {
   try {
     const payload = jwt.verify(req.headers.authorization.split(' ')[1], JWT_SECRET);
-    const user = findUserById(payload.id);
-    if (user) { user.avatar = req.body.avatar; persist(); res.json({ ok: true, avatar: user.avatar }); }
-    else res.status(404).json({ error: 'Не найден' });
+    await db.execute({ sql: 'UPDATE users SET publicKey = ? WHERE id = ?', args: [req.body.publicKey, payload.id] });
+    res.json({ ok: true });
+  } catch (e) { res.status(401).json({ error: 'Ошибка' }); }
+});
+
+app.post('/api/avatar', async (req, res) => {
+  try {
+    const payload = jwt.verify(req.headers.authorization.split(' ')[1], JWT_SECRET);
+    await db.execute({ sql: 'UPDATE users SET avatar = ? WHERE id = ?', args: [req.body.avatar, payload.id] });
+    res.json({ ok: true, avatar: req.body.avatar });
   } catch (e) { res.status(401).json({ error: 'Ошибка' }); }
 });
 
@@ -110,128 +144,128 @@ app.post('/api/avatar', (req, res) => {
 const server = http.createServer(app);
 const io = new Server(server, { maxHttpBufferSize: 2e7 });
 
-io.use((socket, next) => {
+io.use(async (socket, next) => {
   try {
     const payload = jwt.verify(socket.handshake.auth?.token || '', JWT_SECRET);
-    const u = findUserById(payload.id);
-    if (!u) return next(new Error('unauthorized'));
-    socket.user = { id: u.id, username: u.username };
+    const res = await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [payload.id] });
+    if (!res.rows[0]) return next(new Error('unauthorized'));
+    socket.user = { id: res.rows[0].id, username: res.rows[0].username };
     next();
   } catch { next(new Error('unauthorized')); }
 });
 
 const online = new Map();
 
-const getContactsList = (userId) => {
-  const user = findUserById(userId);
-  if (!user || !user.contacts) return [];
-  return state.users
-    .filter(u => user.contacts.includes(u.id))
-    .map(u => ({ id: u.id, username: u.username, avatar: u.avatar, publicKey: u.publicKey }));
+const getContactsList = async (userId) => {
+  const res = await db.execute({ sql: 'SELECT contacts FROM users WHERE id = ?', args: [userId] });
+  if (!res.rows[0]) return [];
+  const contactIds = JSON.parse(res.rows[0].contacts || '[]');
+  if (contactIds.length === 0) return [];
+
+  const placeholders = contactIds.map(() => '?').join(',');
+  const usersRes = await db.execute({ sql: `SELECT id, username, avatar, publicKey FROM users WHERE id IN (${placeholders})`, args: contactIds });
+  return usersRes.rows;
 };
 
-io.on('connection', (socket) => {
+io.on('connection', async (socket) => {
   const me = socket.user;
   if (!online.has(me.id)) online.set(me.id, new Set());
   online.get(me.id).add(socket.id);
   io.emit('online', [...online.keys()]);
 
-  const sendUsers = () => {
-    socket.emit('users', getContactsList(me.id));
+  const sendUsers = async () => {
+    const list = await getContactsList(me.id);
+    socket.emit('users', list);
   };
   sendUsers();
 
-  socket.on('users', (cb) => { cb(getContactsList(me.id)); });
+  socket.on('users', async (cb) => { cb(await getContactsList(me.id)); });
 
-  socket.on('add-contact', ({ username }, cb) => {
+  socket.on('add-contact', async ({ username }, cb) => {
     try {
-      const target = findUserByName(String(username || ''));
-      const meUser = findUserById(me.id);
+      const targetRes = await db.execute({ sql: 'SELECT * FROM users WHERE LOWER(username) = LOWER(?)', args: [String(username || '').trim()] });
+      const target = targetRes.rows[0];
+      const meRes = await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [me.id] });
+      const meUser = meRes.rows[0];
 
-      console.log(`[LOG] ${me.username} добавляет ${username}. Найден: ${target ? target.username : 'НЕТ'}`);
+      if (!target) return cb({ error: 'Пользователь не найден' });
+      if (target.id === me.id) return cb({ error: 'Это вы' });
+      
+      const myContacts = JSON.parse(meUser.contacts || '[]');
+      if (myContacts.includes(target.id)) return cb({ error: 'Уже в контактах' });
 
-      if (!target) return cb({ error: 'Пользователь не найден. (Помните: на бесплатном Render все аккаунты стираются после 15 мин бездействия)' });
-      if (target.id === me.id) return cb({ error: 'Нельзя добавить самого себя' });
-      if (meUser.contacts.includes(target.id)) return cb({ error: 'Уже в контактах' });
+      myContacts.push(target.id);
+      await db.execute({ sql: 'UPDATE users SET contacts = ? WHERE id = ?', args: [JSON.stringify(myContacts), me.id] });
 
-      meUser.contacts.push(target.id);
-      if (!target.contacts) target.contacts = [];
-      if (!target.contacts.includes(me.id)) target.contacts.push(me.id);
-      persist();
+      const targetContacts = JSON.parse(target.contacts || '[]');
+      if (!targetContacts.includes(me.id)) {
+        targetContacts.push(me.id);
+        await db.execute({ sql: 'UPDATE users SET contacts = ? WHERE id = ?', args: [JSON.stringify(targetContacts), target.id] });
+      }
 
       cb({ ok: true });
-      
-      // Обновляем списки у обоих
-      const meList = getContactsList(me.id);
-      for (const sid of online.get(me.id) || []) io.to(sid).emit('users', meList);
-      const targetList = getContactsList(target.id);
-      for (const sid of online.get(target.id) || []) io.to(sid).emit('users', targetList);
-    } catch (e) { cb({ error: 'Ошибка сервера: ' + e.message }); }
+      io.to([...online.get(me.id) || []]).emit('users', await getContactsList(me.id));
+      io.to([...online.get(target.id) || []]).emit('users', await getContactsList(target.id));
+    } catch (e) { cb({ error: e.message }); }
   });
 
-  socket.on('history', ({ withId }, cb) => {
-    const rows = state.messages
-      .filter(m => (m.fromId === me.id && m.toId === withId) || (m.fromId === withId && m.toId === me.id))
-      .slice(-200);
-    
-    let updated = false;
-    rows.forEach(m => { if (m.toId === me.id && !m.read) { m.read = true; updated = true; } });
-    if (updated) {
-      persist();
+  socket.on('history', async ({ withId }, cb) => {
+    try {
+      const res = await db.execute({
+        sql: `SELECT * FROM messages WHERE (fromId = ? AND toId = ?) OR (fromId = ? AND toId = ?) ORDER BY createdAt ASC LIMIT 200`,
+        args: [me.id, withId, withId, me.id]
+      });
+      
+      await db.execute({
+        sql: `UPDATE messages SET read = 1 WHERE fromId = ? AND toId = ? AND read = 0`,
+        args: [withId, me.id]
+      });
+      
       const targetSockets = online.get(withId);
       if (targetSockets) for (const sid of targetSockets) io.to(sid).emit('messages-read');
-    }
-    cb(rows);
+
+      cb(res.rows.map(r => ({ ...r, read: r.read === 1 })));
+    } catch (e) { cb([]); }
   });
 
   socket.on('typing', ({ toId, isTyping }) => {
-    const targetSockets = online.get(Number(toId));
+    const targetSockets = online.get(toId);
     if (targetSockets) for (const sid of targetSockets) io.to(sid).emit('typing', { fromId: me.id, isTyping });
   });
 
-  socket.on('message', ({ toId, body, type, iv }, ack) => {
-    const target = findUserById(toId);
-    if (!target || !body.trim()) return ack && ack({ error: 'Ошибка' });
+  socket.on('message', async ({ toId, body, type, iv }, ack) => {
+    try {
+      const result = await db.execute({
+        sql: 'INSERT INTO messages (fromId, toId, body, iv, type, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
+        args: [me.id, toId, body, iv, type || 'text', Date.now()]
+      });
+      
+      const msg = {
+        id: Number(result.lastInsertRowid), fromId: me.id, toId: Number(toId),
+        body, iv, type: type || 'text', read: false, createdAt: Date.now()
+      };
 
-    const msg = { id: state.nextMsgId++, fromId: me.id, toId: target.id, body, type: type || 'text', iv, read: false, createdAt: Date.now() };
-    state.messages.push(msg);
-    persist();
-
-    const deliver = (uid, message) => {
-      const set = online.get(uid);
-      if (set) for (const sid of set) io.to(sid).emit('message', message);
-    };
-    deliver(target.id, msg);
-    for (const sid of online.get(me.id) || []) { if (sid !== socket.id) io.to(sid).emit('message', msg); }
-    if (ack) ack({ ok: true, msg });
-  });
-
-  socket.on('mark-read', ({ toId }) => {
-    let updated = false;
-    state.messages.forEach(m => { if (m.fromId === Number(toId) && m.toId === me.id && !m.read) { m.read = true; updated = true; } });
-    if (updated) {
-      persist();
-      const targetSockets = online.get(Number(toId));
-      if (targetSockets) for (const sid of targetSockets) io.to(sid).emit('messages-read');
-    }
+      const deliver = (uid, message) => {
+        const set = online.get(uid);
+        if (set) for (const sid of set) io.to(sid).emit('message', message);
+      };
+      deliver(toId, msg);
+      for (const sid of online.get(me.id) || []) { if (sid !== socket.id) io.to(sid).emit('message', msg); }
+      if (ack) ack({ ok: true, msg });
+    } catch (e) { if (ack) ack({ error: e.message }); }
   });
 
-  socket.on('call-user', ({ toId, offer, type }) => {
-    const targetSockets = online.get(Number(toId));
-    if (targetSockets) for (const sid of targetSockets) io.to(sid).emit('incoming-call', { fromId: me.id, fromName: me.username, offer, type });
+  socket.on('mark-read', async ({ toId }) => {
+    await db.execute({ sql: 'UPDATE messages SET read = 1 WHERE fromId = ? AND toId = ?', args: [toId, me.id] });
+    const targetSockets = online.get(toId);
+    if (targetSockets) for (const sid of targetSockets) io.to(sid).emit('messages-read');
   });
-  socket.on('answer-call', ({ toId, answer }) => {
-    const targetSockets = online.get(Number(toId));
-    if (targetSockets) for (const sid of targetSockets) io.to(sid).emit('call-answered', { answer });
-  });
-  socket.on('ice-candidate', ({ toId, candidate }) => {
-    const targetSockets = online.get(Number(toId));
-    if (targetSockets) for (const sid of targetSockets) io.to(sid).emit('ice-candidate', { candidate });
-  });
-  socket.on('end-call', ({ toId }) => {
-    const targetSockets = online.get(Number(toId));
-    if (targetSockets) for (const sid of targetSockets) io.to(sid).emit('call-ended');
-  });
+
+  // Звонки (без изменений)
+  socket.on('call-user', ({ toId, offer, type }) => { const t = online.get(Number(toId)); if (t) for (const sid of t) io.to(sid).emit('incoming-call', { fromId: me.id, fromName: me.username, offer, type }); });
+  socket.on('answer-call', ({ toId, answer }) => { const t = online.get(Number(toId)); if (t) for (const sid of t) io.to(sid).emit('call-answered', { answer }); });
+  socket.on('ice-candidate', ({ toId, candidate }) => { const t = online.get(Number(toId)); if (t) for (const sid of t) io.to(sid).emit('ice-candidate', { candidate }); });
+  socket.on('end-call', ({ toId }) => { const t = online.get(Number(toId)); if (t) for (const sid of t) io.to(sid).emit('call-ended'); });
 
   socket.on('disconnect', () => {
     const set = online.get(me.id);
@@ -241,5 +275,5 @@ io.on('connection', (socket) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n✅ Сервер с E2EE запущен на порту ${PORT}\n`);
+  console.log(`\n✅ Сервер с Turso запущен на порту ${PORT}\n`);
 });

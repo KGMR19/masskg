@@ -101,10 +101,12 @@ app.post('/api/public-key', async (req, res) => {
 
 app.post('/api/avatar', async (req, res) => {
   try {
-    const payload = jwt.verify(req.headers.authorization.split(' ')[1], JWT_SECRET);
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: 'Нет токена' });
+    const payload = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
     await dbQuery('UPDATE users SET avatar = ? WHERE id = ?', [req.body.avatar, payload.id]);
     res.json({ ok: true, avatar: req.body.avatar });
-  } catch (e) { res.status(401).json({ error: 'Ошибка' }); }
+  } catch (e) { res.status(401).json({ error: 'Ошибка авторизации' }); }
 });
 
 app.post('/api/change-password', async (req, res) => {
@@ -163,6 +165,10 @@ io.on('connection', async (socket) => {
 
   socket.on('get-data', async (cb) => {
     cb({ contacts: await getContactsList(me.id), groups: await getGroupsList(me.id) });
+  });
+
+  socket.on('force-refresh', () => {
+    io.emit('refresh-data');
   });
 
   socket.on('create-group', async ({ name, type, memberIds }, cb) => {
@@ -242,7 +248,6 @@ io.on('connection', async (socket) => {
     } catch (e) { if (ack) ack({ error: e.message }); }
   });
 
-  // ГРУППОВЫЕ ЗВОНКИ
   const activeCalls = new Map(); 
   socket.on('join-call', async ({ groupId }) => {
     if (!activeCalls.has(groupId)) activeCalls.set(groupId, new Set());

@@ -52,13 +52,22 @@ async function initDB() {
         avatar TEXT, publicKey TEXT, contacts TEXT DEFAULT '[]', createdAt INTEGER NOT NULL
     )`);
     await dbQuery(`CREATE TABLE IF NOT EXISTS messages (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, fromId INTEGER NOT NULL, toId INTEGER, groupId INTEGER,
+        id INTEGER PRIMARY KEY AUTOINCREMENT, fromId INTEGER NOT NULL, toId INTEGER,
         body TEXT NOT NULL, iv TEXT, type TEXT DEFAULT 'text', read INTEGER DEFAULT 0, createdAt INTEGER NOT NULL
     )`);
     await dbQuery(`CREATE TABLE IF NOT EXISTS groups (
         id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, type TEXT DEFAULT 'group',
         avatar TEXT, members TEXT DEFAULT '[]', admins TEXT DEFAULT '[]', createdAt INTEGER NOT NULL
     )`);
+    
+    // МИГРАЦИЯ: Добавляем колонку groupId, если её нет
+    try {
+      await dbQuery(`ALTER TABLE messages ADD COLUMN groupId INTEGER`);
+      console.log('✅ Колонка groupId добавлена в messages');
+    } catch (e) {
+      // Колонка уже существует
+    }
+
     console.log('✅ Таблицы Turso готовы');
   } catch (e) { console.error('❌ Ошибка БД:', e.message); }
 }
@@ -101,9 +110,7 @@ app.post('/api/public-key', async (req, res) => {
 
 app.post('/api/avatar', async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ error: 'Нет токена' });
-    const payload = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+    const payload = jwt.verify(req.headers.authorization.split(' ')[1], JWT_SECRET);
     await dbQuery('UPDATE users SET avatar = ? WHERE id = ?', [req.body.avatar, payload.id]);
     res.json({ ok: true, avatar: req.body.avatar });
   } catch (e) { res.status(401).json({ error: 'Ошибка авторизации' }); }
@@ -117,7 +124,7 @@ app.post('/api/change-password', async (req, res) => {
     const userRes = await dbQuery('SELECT * FROM users WHERE id = ?', [payload.id]);
     const user = userRes.rows[0];
     
-    if (!user) return res.status(404).json({ error: 'Пользователь не найден. Выйдите и зарегистрируйтесь заново.' });
+    if (!user) return res.status(404).json({ error: 'Пользователь не найден.' });
     if (!bcrypt.compareSync(req.body.oldPassword, user.passwordHash))
       return res.status(400).json({ error: 'Неверный текущий пароль' });
 

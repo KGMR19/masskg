@@ -37,7 +37,8 @@ const findUserById   = (id) => state.users.find(x => x.id === id);
 
 /* ---------- HTTP ---------- */
 const app = express();
-app.use(express.json({ limit: '10mb' }));
+// Увеличиваем лимит, так как аудио в Base64 весит прилично
+app.use(express.json({ limit: '20mb' })); 
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/api/health', (_, res) =>
@@ -99,7 +100,7 @@ app.post('/api/avatar', (req, res) => {
 
 /* ---------- Socket.io ---------- */
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, { maxHttpBufferSize: 2e7 }); // 20 MB для аудио
 
 io.use((socket, next) => {
   try {
@@ -161,16 +162,41 @@ io.on('connection', (socket) => {
     const rows = state.messages.filter(m =>
       (m.fromId === me.id && m.toId === withId) || (m.fromId === withId && m.toId === me.id)
     ).slice(-200);
+    
+    // Помечаем сообщения от собеседника как прочитанные
+    let updated = false;
+    rows.forEach(m => {
+      if (m.toId === me.id && !m.read) {
+        m.read = true;
+        updated = true;
+      }
+    });
+    if (updated) {
+      persist();
+      const targetSockets = online.get(withId);
+      if (targetSockets) {
+        for (const sid of targetSockets) io.to(sid).emit('messages-read');
+      }
+    }
+
     if (cb) cb(rows);
   });
 
+  socket.on('typing', ({ toId, isTyping }) => {
+    const targetSockets = online.get(Number(toId));
+    if (targetSockets) {
+      for (const sid of targetSockets) {
+        io.to(sid).emit('typing', { fromId: me.id, isTyping });
+      }
+    }
+  });
+
   socket.on('message', ({ toId, body, type }, ack) => {
-    body = String(body || '').slice(0, 4000);
+    body = String(body || '').slice(0, 4000000); // Лимит на размер аудио
     const target = findUserById(Number(toId));
     if (!target || !body.trim()) return ack && ack({ error: 'Некорректное сообщение' });
 
-    // Сохраняем тип сообщения (текст или стикер)
-    const msg = { id: state.nextMsgId++, fromId: me.id, toId: target.id, body, type: type || 'text', createdAt: Date.now() };
+    const msg = { id: state.nextMsgId++, fromId: me.id, toId: target.id, body, type: type || 'text', createdAt: Date.now(), read: false };
     state.messages.push(msg);
     persist();
 
@@ -186,35 +212,41 @@ io.on('connection', (socket) => {
     if (ack) ack({ ok: true, msg });
   });
 
-  /* ================= ЗВОНКИ ================= */
-  socket.on('call-user', ({ toId, offer, type }) => {
-    const targetSockets = online.get(Number(toId));
-    if (targetSockets) {
-      for (const sid of targetSockets) {
-        io.to(sid).emit('incoming-call', { fromId: me.id, fromName: me.username, offer, type });
+  socket.on('mark-read', ({ toId }) => {
+    let updated = false;
+    state.messages.forEach(m => {
+      if (m.fromId === Number(toId) && m.toId === me.id && !m.read) {
+        m.read = true;
+        updated = true;
+      }
+    });
+    if (updated) {
+      persist();
+      const targetSockets = online.get(Number(toId));
+      if (targetSockets) {
+        for (const sid of targetSockets) io.to(sid).emit('messages-read');
       }
     }
   });
 
+  /* ================= ЗВОНКИ ================= */
+  socket.on('call-user', ({ toId, offer, type }) => {
+    const targetSockets = online.get(Number(toId));
+    if (targetSockets) {
+      for (const sid of targetSockets) io.to(sid).emit('incoming-call', { fromId: me.id, fromName: me.username, offer, type });
+    }
+  });
   socket.on('answer-call', ({ toId, answer }) => {
     const targetSockets = online.get(Number(toId));
-    if (targetSockets) {
-      for (const sid of targetSockets) io.to(sid).emit('call-answered', { answer });
-    }
+    if (targetSockets) for (const sid of targetSockets) io.to(sid).emit('call-answered', { answer });
   });
-
   socket.on('ice-candidate', ({ toId, candidate }) => {
     const targetSockets = online.get(Number(toId));
-    if (targetSockets) {
-      for (const sid of targetSockets) io.to(sid).emit('ice-candidate', { candidate });
-    }
+    if (targetSockets) for (const sid of targetSockets) io.to(sid).emit('ice-candidate', { candidate });
   });
-
   socket.on('end-call', ({ toId }) => {
     const targetSockets = online.get(Number(toId));
-    if (targetSockets) {
-      for (const sid of targetSockets) io.to(sid).emit('call-ended');
-    }
+    if (targetSockets) for (const sid of targetSockets) io.to(sid).emit('call-ended');
   });
   /* ========================================== */
 

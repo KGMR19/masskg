@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>Secure Messenger</title>
+<title>Flugost</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root { --bg-base: #0b0f19; --bg-panel: #111827; --bg-hover: #1f2937; --bg-input: #1f2937; --text-main: #f3f4f6; --text-muted: #9ca3af; --accent: #6366f1; --accent-hover: #4f46e5; --accent-light: #818cf8; --border-color: #374151; --danger: #ef4444; --success: #10b981; --bubble-me: linear-gradient(135deg, #6366f1, #8b5cf6); --bubble-other: #1f2937; }
@@ -137,7 +137,7 @@
 <div id="confetti-container" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 9999; overflow: hidden;"></div>
 
 <div id="auth">
-  <h1>Secure Messenger</h1>
+  <h1>Flugost</h1>
   <form id="auth-form">
     <input id="u" name="username" placeholder="Логин" required autocomplete="off" />
     <input id="p" name="password" type="password" placeholder="Пароль" required autocomplete="off" />
@@ -204,6 +204,9 @@
           </div>
         </div>
         <div class="call-actions">
+          <button id="deleteChatBtn" title="Удалить чат/канал" style="color: var(--danger);">
+            <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+          </button>
           <button id="startCallBtn" title="Позвонить">
             <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
           </button>
@@ -266,7 +269,7 @@
     </div>
     <div id="tab-security" class="tab-content">
       <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid var(--success); padding: 12px; border-radius: 8px; margin-bottom: 20px;">
-        <p style="font-size: 13px; color: var(--success); line-height: 1.4;"><b>🛡️ E2EE Включено.</b> Сервер не видит ваши сообщения.</p>
+        <p style="font-size: 13px; color: var(--success); line-height: 1.4;"><b>🛡️ Защита данных.</b> Ваши данные надежно хранятся в облаке.</p>
       </div>
       <h3 style="font-size: 16px; margin-bottom: 12px;">Смена пароля</h3>
       <div class="form-group"><input type="password" id="oldPassword" placeholder="Текущий пароль" /></div>
@@ -290,37 +293,9 @@ const $ = id => document.getElementById(id);
 let token = localStorage.getItem('pm_token');
 let me = null; try { me = JSON.parse(localStorage.getItem('pm_user') || 'null'); } catch {}
 let socket = null, currentChat = null;
-let contacts = [], groups = [], onlineSet = new Set(), myKeys = null;
+let contacts = [], groups = [], onlineSet = new Set();
 
 const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
-
-async function generateKeys() {
-  const keyPair = await window.crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveKey", "deriveBits"]);
-  const exportedPub = await window.crypto.subtle.exportKey("jwk", keyPair.publicKey);
-  const exportedPriv = await window.crypto.subtle.exportKey("jwk", keyPair.privateKey);
-  localStorage.setItem('pm_priv_key', JSON.stringify(exportedPriv));
-  await fetch('/api/public-key', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ publicKey: JSON.stringify(exportedPub) }) });
-  myKeys = { privateKey: keyPair.privateKey };
-}
-async function loadKeys() {
-  const privStr = localStorage.getItem('pm_priv_key'); if (!privStr) return false;
-  try { myKeys = { privateKey: await window.crypto.subtle.importKey("jwk", JSON.parse(privStr), { name: "ECDH", namedCurve: "P-256" }, true, ["deriveKey"]) }; return true; } catch (e) { return false; }
-}
-async function encryptMsg(text, pubKeyJwk) {
-  const pubKey = await window.crypto.subtle.importKey("jwk", JSON.parse(pubKeyJwk), { name: "ECDH", namedCurve: "P-256" }, true, []);
-  const sharedKey = await window.crypto.subtle.deriveKey({ name: "ECDH", public: pubKey }, myKeys.privateKey, { name: "AES-GCM", length: 256 }, true, ["encrypt"]);
-  const iv = window.crypto.getRandomValues(new Uint8Array(12));
-  const ct = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, sharedKey, new TextEncoder().encode(text));
-  return { ciphertext: btoa(String.fromCharCode(...new Uint8Array(ct))), iv: btoa(String.fromCharCode(...iv)) };
-}
-async function decryptMsg(ctB64, ivB64, pubKeyJwk) {
-  try {
-    const pubKey = await window.crypto.subtle.importKey("jwk", JSON.parse(pubKeyJwk), { name: "ECDH", namedCurve: "P-256" }, true, []);
-    const sharedKey = await window.crypto.subtle.deriveKey({ name: "ECDH", public: pubKey }, myKeys.privateKey, { name: "AES-GCM", length: 256 }, true, ["decrypt"]);
-    const pt = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: Uint8Array.from(atob(ivB64), c=>c.charCodeAt(0)) }, sharedKey, Uint8Array.from(atob(ctB64), c=>c.charCodeAt(0)));
-    return new TextDecoder().decode(pt);
-  } catch { return "🔒 [Зашифровано]"; }
-}
 
 function fireConfetti() {
   const container = $('confetti-container'), colors = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6'];
@@ -359,7 +334,6 @@ $('reg').onclick = async () => {
 async function start() {
   $('auth').classList.add('hidden'); $('app').classList.remove('hidden');
   $('me').textContent = me.username;
-  if (!(await loadKeys())) await generateKeys();
   $('searchInput').value = ''; 
   if (me.avatar) renderAvatar($('me-avatar'), me.username, me.avatar);
 
@@ -373,6 +347,13 @@ async function start() {
     if (currentChat && (m.groupId === currentChat.id || m.toId === currentChat.id || m.fromId === currentChat.id)) {
       await renderMessage(m);
     }
+  });
+
+  socket.on('chat-deleted', ({ id, isGroup }) => {
+    if (currentChat && currentChat.id === id && currentChat.type === (isGroup ? 'group' : 'user')) {
+      closeChat();
+    }
+    socket.emit('get-data', data => { contacts = data.contacts; groups = data.groups; renderLists(); });
   });
 
   socket.on('call-peers', ({ peers }) => { peers.forEach(pid => createPeerConnection(pid, true)); });
@@ -401,7 +382,6 @@ function renderAvatar(container, username, avatarBase64) {
   }
 }
 
-/* --- СТИКЕРЫ --- */
 const STICKERS = ['1f602','2764_fe0f','1f44d','1f525','1f62d','1f621','1f973','1f914','1f634','1f92f','1f929','1f648'];
 function initStickers() { 
   const panel = $('sticker-panel'); 
@@ -446,21 +426,11 @@ $('customStickerInput').onchange = (e) => {
 
 async function sendSticker(url) { 
   if (!currentChat) return; 
-  
-  let body = url, iv = null;
-  
-  // Шифруем только если это личный чат И у собеседника есть ключ
-  if (currentChat.type === 'user' && currentChat.publicKey && url.startsWith('data:image')) { 
-    const encrypted = await encryptMsg(url, currentChat.publicKey); 
-    body = encrypted.ciphertext;
-    iv = encrypted.iv;
-  } 
-
   socket.emit('message', { 
     groupId: currentChat.type === 'group' ? currentChat.id : null, 
     toId: currentChat.type === 'user' ? currentChat.id : null, 
-    body, 
-    iv, 
+    body: url, 
+    iv: null, 
     type: 'sticker' 
   }, async (res) => { 
     if (res.error) return alert(res.error);
@@ -468,7 +438,6 @@ async function sendSticker(url) {
     fireConfetti(); 
   }); 
 }
-/* --------------- */
 
 $('avatarInput').onchange = (e) => { 
   const file = e.target.files[0]; if (!file) return; 
@@ -557,6 +526,17 @@ $('closeChatBtn').onclick = () => {
   renderLists();
 };
 
+$('deleteChatBtn').onclick = () => {
+  if (!currentChat) return;
+  const typeName = currentChat.type === 'group' ? 'группу/канал' : 'переписку';
+  if (confirm(`Вы уверены, что хотите полностью удалить ${typeName}? Это действие нельзя отменить.`)) {
+    socket.emit('delete-chat', { id: currentChat.id, isGroup: currentChat.type === 'group' }, (res) => {
+      if (res.error) alert(res.error);
+      else closeChat();
+    });
+  }
+};
+
 async function renderMessage(m) {
   const d = document.createElement('div');
   d.className = 'msg' + (m.fromId === me.id ? ' me' : '');
@@ -566,20 +546,11 @@ async function renderMessage(m) {
     d.innerHTML += `<span class="sender-name">${sender ? sender.username : 'Участник'}</span>`;
   }
 
-  let text = m.body;
-  if (m.iv) {
-    if (currentChat?.type === 'group') text = "🔒 [Зашифровано]";
-    else {
-      const other = contacts.find(c => c.id === (m.fromId === me.id ? m.toId : m.fromId));
-      text = other?.publicKey ? await decryptMsg(m.body, m.iv, other.publicKey) : "🔒 [Нет ключа]";
-    }
-  }
-
   if (m.type === 'sticker') {
     d.className = 'msg sticker' + (m.fromId === me.id ? ' me' : '');
-    d.innerHTML += `<img src="${text}" alt="sticker">`;
+    d.innerHTML += `<img src="${m.body}" alt="sticker">`;
   } else {
-    d.innerHTML += `${escapeHtml(text)}<span class="t">${new Date(m.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>`;
+    d.innerHTML += `${escapeHtml(m.body)}<span class="t">${new Date(m.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>`;
   }
   
   $('messages').appendChild(d);
@@ -590,15 +561,7 @@ $('form').onsubmit = async (e) => {
   e.preventDefault();
   const text = $('input').value.trim(); if (!text || !currentChat) return;
   
-  let body = text, iv = null;
-  if (currentChat.type === 'user') {
-    const other = contacts.find(c => c.id === currentChat.id);
-    if (other?.publicKey) {
-      const enc = await encryptMsg(text, other.publicKey); body = enc.ciphertext; iv = enc.iv;
-    }
-  }
-
-  socket.emit('message', { groupId: currentChat.type === 'group' ? currentChat.id : null, toId: currentChat.type === 'user' ? currentChat.id : null, body, iv, type: 'text' }, async res => {
+  socket.emit('message', { groupId: currentChat.type === 'group' ? currentChat.id : null, toId: currentChat.type === 'user' ? currentChat.id : null, body: text, iv: null, type: 'text' }, async res => {
     if (res.error) alert(res.error); else await renderMessage(res.msg);
     fireConfetti();
   });

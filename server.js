@@ -60,13 +60,7 @@ async function initDB() {
         avatar TEXT, members TEXT DEFAULT '[]', admins TEXT DEFAULT '[]', createdAt INTEGER NOT NULL
     )`);
     
-    // МИГРАЦИЯ: Добавляем колонку groupId, если её нет
-    try {
-      await dbQuery(`ALTER TABLE messages ADD COLUMN groupId INTEGER`);
-      console.log('✅ Колонка groupId добавлена в messages');
-    } catch (e) {
-      // Колонка уже существует
-    }
+    try { await dbQuery(`ALTER TABLE messages ADD COLUMN groupId INTEGER`); } catch (e) {}
 
     console.log('✅ Таблицы Turso готовы');
   } catch (e) { console.error('❌ Ошибка БД:', e.message); }
@@ -188,6 +182,32 @@ io.on('connection', async (socket) => {
     } catch (e) { cb({ error: e.message }); }
   });
 
+  socket.on('delete-chat', async ({ id, isGroup }, cb) => {
+    try {
+      if (isGroup) {
+        const groupRes = await dbQuery('SELECT admins FROM groups WHERE id = ?', [id]);
+        if (!groupRes.rows[0]) return cb({ error: 'Группа не найдена' });
+        
+        const admins = JSON.parse(groupRes.rows[0].admins);
+        if (!admins.includes(me.id)) return cb({ error: 'Только создатель может удалить канал' });
+
+        await dbQuery('DELETE FROM groups WHERE id = ?', [id]);
+        await dbQuery('DELETE FROM messages WHERE groupId = ?', [id]);
+        io.emit('chat-deleted', { id, isGroup });
+      } else {
+        await dbQuery('DELETE FROM messages WHERE (fromId = ? AND toId = ?) OR (fromId = ? AND toId = ?)', [me.id, id, id, me.id]);
+        
+        const targetSockets = online.get(Number(id));
+        if (targetSockets) {
+          for (const sid of targetSockets) io.to(sid).emit('chat-deleted', { id: me.id, isGroup: false });
+        }
+        socket.emit('chat-deleted', { id, isGroup: false });
+      }
+      cb({ ok: true });
+      io.emit('refresh-data');
+    } catch (e) { cb({ error: e.message }); }
+  });
+
   socket.on('add-contact', async ({ username }, cb) => {
     try {
       const targetRes = await dbQuery('SELECT * FROM users WHERE LOWER(username) = LOWER(?)', [String(username || '').trim()]);
@@ -291,5 +311,5 @@ io.on('connection', async (socket) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n✅ Сервер запущен на порту ${PORT}\n`);
+  console.log(`\n✅ Flugost сервер запущен на порту ${PORT}\n`);
 });

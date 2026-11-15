@@ -49,17 +49,18 @@ async function initDB() {
   try {
     await dbQuery(`CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, passwordHash TEXT NOT NULL,
-        avatar TEXT, publicKey TEXT, contacts TEXT DEFAULT '[]', createdAt INTEGER NOT NULL
+        avatar TEXT, contacts TEXT DEFAULT '[]', createdAt INTEGER NOT NULL
     )`);
     await dbQuery(`CREATE TABLE IF NOT EXISTS messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT, fromId INTEGER NOT NULL, toId INTEGER,
-        body TEXT NOT NULL, iv TEXT, type TEXT DEFAULT 'text', read INTEGER DEFAULT 0, createdAt INTEGER NOT NULL
+        body TEXT NOT NULL, type TEXT DEFAULT 'text', read INTEGER DEFAULT 0, createdAt INTEGER NOT NULL
     )`);
     await dbQuery(`CREATE TABLE IF NOT EXISTS groups (
         id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, type TEXT DEFAULT 'group',
         avatar TEXT, members TEXT DEFAULT '[]', admins TEXT DEFAULT '[]', createdAt INTEGER NOT NULL
     )`);
     
+    // Миграция на всякий случай
     try { await dbQuery(`ALTER TABLE messages ADD COLUMN groupId INTEGER`); } catch (e) {}
 
     console.log('✅ Таблицы Turso готовы');
@@ -77,7 +78,7 @@ app.post('/api/register', async (req, res) => {
     if (!username || !password) return res.status(400).json({ error: 'Нужны логин и пароль' });
     const hash = bcrypt.hashSync(password, 10);
     const result = await dbQuery('INSERT INTO users (username, passwordHash, createdAt) VALUES (?, ?, ?)', [username.trim(), hash, Date.now()]);
-    const user = { id: result.lastInsertRowid, username: username.trim(), avatar: null, publicKey: null };
+    const user = { id: result.lastInsertRowid, username: username.trim(), avatar: null };
     const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, user });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -90,16 +91,8 @@ app.post('/api/login', async (req, res) => {
     const user = result.rows[0];
     if (!user || !bcrypt.compareSync(String(password || ''), user.passwordHash)) return res.status(401).json({ error: 'Неверный логин или пароль' });
     const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { id: user.id, username: user.username, avatar: user.avatar, publicKey: user.publicKey } });
+    res.json({ token, user: { id: user.id, username: user.username, avatar: user.avatar } });
   } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.post('/api/public-key', async (req, res) => {
-  try {
-    const payload = jwt.verify(req.headers.authorization.split(' ')[1], JWT_SECRET);
-    await dbQuery('UPDATE users SET publicKey = ? WHERE id = ?', [req.body.publicKey, payload.id]);
-    res.json({ ok: true });
-  } catch (e) { res.status(401).json({ error: 'Ошибка' }); }
 });
 
 app.post('/api/avatar', async (req, res) => {
@@ -149,7 +142,7 @@ const getContactsList = async (userId) => {
   const ids = JSON.parse(res.rows[0].contacts || '[]');
   if (ids.length === 0) return [];
   const placeholders = ids.map(() => '?').join(',');
-  const usersRes = await dbQuery(`SELECT id, username, avatar, publicKey FROM users WHERE id IN (${placeholders})`, ids);
+  const usersRes = await dbQuery(`SELECT id, username, avatar FROM users WHERE id IN (${placeholders})`, ids);
   return usersRes.rows;
 };
 
@@ -246,15 +239,15 @@ io.on('connection', async (socket) => {
     } catch (e) { cb([]); }
   });
 
-  socket.on('message', async ({ toId, groupId, body, type, iv }, ack) => {
+  socket.on('message', async ({ toId, groupId, body, type }, ack) => {
     try {
       const isGroup = !!groupId;
       const result = await dbQuery(
-        'INSERT INTO messages (fromId, toId, groupId, body, iv, type, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [me.id, toId || null, groupId || null, body, iv, type || 'text', Date.now()]
+        'INSERT INTO messages (fromId, toId, groupId, body, type, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
+        [me.id, toId || null, groupId || null, body, type || 'text', Date.now()]
       );
       
-      const msg = { id: result.lastInsertRowid, fromId: me.id, username: me.username, toId, groupId, body, iv, type: type || 'text', read: false, createdAt: Date.now() };
+      const msg = { id: result.lastInsertRowid, fromId: me.id, username: me.username, toId, groupId, body, type: type || 'text', read: false, createdAt: Date.now() };
 
       if (isGroup) {
         const groupRes = await dbQuery('SELECT members FROM groups WHERE id = ?', [groupId]);
@@ -311,5 +304,5 @@ io.on('connection', async (socket) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n✅ Flugost сервер запущен на порту ${PORT}\n`);
+  console.log(`\n✅ GhoFlux запущен на порту ${PORT}\n`);
 });

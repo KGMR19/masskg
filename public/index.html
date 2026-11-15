@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>Flugost</title>
+<title>GhoFlux</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root { --bg-base: #0b0f19; --bg-panel: #111827; --bg-hover: #1f2937; --bg-input: #1f2937; --text-main: #f3f4f6; --text-muted: #9ca3af; --accent: #6366f1; --accent-hover: #4f46e5; --accent-light: #818cf8; --border-color: #374151; --danger: #ef4444; --success: #10b981; --bubble-me: linear-gradient(135deg, #6366f1, #8b5cf6); --bubble-other: #1f2937; }
@@ -137,7 +137,7 @@
 <div id="confetti-container" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 9999; overflow: hidden;"></div>
 
 <div id="auth">
-  <h1>Flugost</h1>
+  <h1>GhoFlux</h1>
   <form id="auth-form">
     <input id="u" name="username" placeholder="Логин" required autocomplete="off" />
     <input id="p" name="password" type="password" placeholder="Пароль" required autocomplete="off" />
@@ -255,7 +255,6 @@
     <h2>Настройки</h2>
     <div class="settings-tabs">
       <button class="settings-tab active" data-tab="tab-profile">Профиль</button>
-      <button class="settings-tab" data-tab="tab-security">Безопасность</button>
     </div>
     <div id="tab-profile" class="tab-content active">
       <div class="setting-item"><label>Аватарка</label><button class="settings-btn" id="changeAvatarBtn">Изменить</button></div>
@@ -265,16 +264,12 @@
           <option value="default">Чёрная</option><option value="blue">Синяя</option><option value="red">Красная</option><option value="gray">Серая</option><option value="pink">Розовая</option><option value="sunset">🌅 Закат</option><option value="ocean">🌊 Океан</option><option value="dracula">🧛 Дракула</option><option value="cyberpunk">🤖 Киберпанк</option><option value="coffee">☕ Кофе</option><option value="deepseek">🌟 DeepSeek</option>
         </select>
       </div>
-      <button class="settings-btn" id="logoutBtn" style="width: 100%; margin-top: 10px; background: rgba(239,68,68,0.2); color: #ef4444;">Выйти</button>
-    </div>
-    <div id="tab-security" class="tab-content">
-      <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid var(--success); padding: 12px; border-radius: 8px; margin-bottom: 20px;">
-        <p style="font-size: 13px; color: var(--success); line-height: 1.4;"><b>🛡️ Защита данных.</b> Ваши данные надежно хранятся в облаке.</p>
-      </div>
-      <h3 style="font-size: 16px; margin-bottom: 12px;">Смена пароля</h3>
+      <h3 style="font-size: 16px; margin-top: 20px; margin-bottom: 12px;">Смена пароля</h3>
       <div class="form-group"><input type="password" id="oldPassword" placeholder="Текущий пароль" /></div>
       <div class="form-group"><input type="password" id="newPassword" placeholder="Новый пароль" /></div>
-      <button class="btn-save" id="changePasswordBtn">Сменить</button>
+      <button class="btn-save" id="changePasswordBtn">Сменить пароль</button>
+      
+      <button class="settings-btn" id="logoutBtn" style="width: 100%; margin-top: 20px; background: rgba(239,68,68,0.2); color: #ef4444;">Выйти</button>
     </div>
     <button class="settings-btn" id="closeSettingsBtn" style="width: 100%; margin-top: 20px; background: var(--accent); color: white;">Закрыть</button>
   </div>
@@ -430,7 +425,6 @@ async function sendSticker(url) {
     groupId: currentChat.type === 'group' ? currentChat.id : null, 
     toId: currentChat.type === 'user' ? currentChat.id : null, 
     body: url, 
-    iv: null, 
     type: 'sticker' 
   }, async (res) => { 
     if (res.error) return alert(res.error);
@@ -503,7 +497,7 @@ function renderLists() {
 $('searchInput').oninput = renderLists;
 
 function openChat(type, data) {
-  currentChat = { type, id: data.id, name: type === 'group' ? data.name : data.username, avatar: data.avatar, members: data.members, publicKey: data.publicKey };
+  currentChat = { type, id: data.id, name: type === 'group' ? data.name : data.username, avatar: data.avatar, members: data.members };
   $('app').classList.add('chat-open');
   $('empty-chat').classList.add('hidden');
   $('chat-view').classList.remove('hidden');
@@ -561,7 +555,7 @@ $('form').onsubmit = async (e) => {
   e.preventDefault();
   const text = $('input').value.trim(); if (!text || !currentChat) return;
   
-  socket.emit('message', { groupId: currentChat.type === 'group' ? currentChat.id : null, toId: currentChat.type === 'user' ? currentChat.id : null, body: text, iv: null, type: 'text' }, async res => {
+  socket.emit('message', { groupId: currentChat.type === 'group' ? currentChat.id : null, toId: currentChat.type === 'user' ? currentChat.id : null, body: text, type: 'text' }, async res => {
     if (res.error) alert(res.error); else await renderMessage(res.msg);
     fireConfetti();
   });

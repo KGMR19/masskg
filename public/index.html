@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>GhoFlux</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -23,8 +23,6 @@
   .hidden { display: none !important; }
   svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   button { font-family: inherit; }
-
-  /* Прячем скроллбары везде для чистоты */
   ::-webkit-scrollbar { width: 0px; background: transparent; }
 
   .modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 3000; }
@@ -99,23 +97,24 @@
 
   main { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--bg-base); position: relative; }
   #empty-chat { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); }
-  main header { padding: 12px 24px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; background: var(--bg-panel); z-index: 10; }
-  .chat-info { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; }
-  .chat-info .avatar { width: 42px; height: 42px; font-size: 16px; }
-  .chat-title-block { min-width: 0; }
+  main header { padding: 12px 16px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; background: var(--bg-panel); z-index: 10; }
+  .chat-info { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+  .chat-info .avatar { width: 40px; height: 40px; font-size: 16px; }
+  .chat-title-block { min-width: 0; flex: 1; }
   .chat-info .title { font-weight: 600; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #chatBio { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #typing-indicator { font-size: 12px; color: var(--accent-light); height: 16px; margin-top: 2px; font-style: italic; opacity: 0; transition: opacity 0.2s; }
+  #typing-indicator { font-size: 12px; color: var(--accent-light); height: 16px; margin-top: 2px; font-style: italic; opacity: 0; transition: opacity 0.2s; position: absolute; }
   #typing-indicator.visible { opacity: 1; }
-  .call-actions { display: flex; gap: 8px; }
-  .call-actions button { background: var(--bg-hover); border: none; color: var(--text-main); cursor: pointer; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+  
+  .call-actions { display: flex; gap: 4px; flex-shrink: 0; }
+  .call-actions button { background: var(--bg-hover); border: none; color: var(--text-main); cursor: pointer; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
   .call-actions button:hover { background: var(--accent); transform: scale(1.05); }
-  .call-actions button svg { width: 18px; height: 18px; }
-  .close-chat-btn { background: transparent !important; }
+  .call-actions button svg { width: 16px; height: 16px; }
+  .close-chat-btn { background: transparent !important; flex-shrink: 0; width: 32px !important; }
   .close-chat-btn:hover { background: var(--danger) !important; }
 
-  #messages { flex: 1; overflow-y: auto; min-height: 0; padding: 24px; display: flex; flex-direction: column; gap: 16px; scroll-behavior: smooth; }
-  .msg { max-width: 65%; padding: 10px 14px; border-radius: 18px; background: var(--bubble-other); align-self: flex-start; font-size: var(--font-base); line-height: 1.5; border-bottom-left-radius: 4px; position: relative; word-wrap: break-word; box-shadow: 0 2px 5px rgba(0,0,0,0.1); animation: pop 0.2s ease-out; cursor: pointer; }
+  #messages { flex: 1; overflow-y: auto; overflow-x: hidden; min-height: 0; padding: 16px; display: flex; flex-direction: column; gap: 12px; scroll-behavior: smooth; }
+  .msg { max-width: 85%; padding: 10px 14px; border-radius: 18px; background: var(--bubble-other); align-self: flex-start; font-size: var(--font-base); line-height: 1.5; border-bottom-left-radius: 4px; position: relative; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; box-shadow: 0 2px 5px rgba(0,0,0,0.1); animation: pop 0.2s ease-out; cursor: pointer; }
   .msg.me { background: var(--bubble-me); align-self: flex-end; border-bottom-left-radius: 18px; border-bottom-right-radius: 4px; color: white; }
   .msg .sender-name { font-size: 12px; color: var(--accent-light); font-weight: 600; margin-bottom: 4px; display: block; }
   .msg .reply-preview { background: rgba(0,0,0,0.2); border-left: 3px solid var(--accent); padding: 6px 10px; border-radius: 8px; margin-bottom: 6px; font-size: 12px; }
@@ -123,11 +122,12 @@
   .msg .reply-preview b { display: block; font-weight: 600; color: var(--accent-light); margin-bottom: 2px; font-size: 11px; }
   .msg .reply-preview span { opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
   .msg .t { display: block; font-size: 11px; opacity: 0.7; margin-top: 4px; text-align: right; }
-  .msg .reactions-row { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
-  .msg .reaction { background: rgba(0,0,0,0.3); padding: 2px 8px; border-radius: 10px; font-size: 12px; cursor: pointer; transition: 0.2s; }
-  .msg .reaction.mine { background: rgba(99,102,241,0.4); }
+  
+  /* Фикс для длинных Base64 сообщений, чтобы они не ломали экран */
+  .msg { word-break: break-all; }
+
   .msg.sticker img { width: 130px; height: 130px; object-fit: contain; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2)); }
-  .msg.sticker { background: transparent !important; padding: 0 !important; box-shadow: none; }
+  .msg.sticker { background: transparent !important; padding: 0 !important; box-shadow: none; word-break: normal; }
   @keyframes pop { 0% { opacity: 0; transform: scale(0.95) translateY(5px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
 
   #msg-menu { position: absolute; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; padding: 6px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 1000; min-width: 180px; }
@@ -139,38 +139,38 @@
   .emoji-picker-row button { padding: 6px 8px !important; width: auto !important; font-size: 20px !important; }
   .emoji-picker-row button:hover { background: var(--bg-hover); transform: scale(1.2); }
 
-  #form { display: flex; gap: 12px; padding: 16px 24px; background: var(--bg-panel); border-top: 1px solid var(--border-color); align-items: center; flex-wrap: wrap; }
+  #form { display: flex; gap: 8px; padding: 12px 16px; background: var(--bg-panel); border-top: 1px solid var(--border-color); align-items: center; flex-wrap: wrap; }
   #reply-banner { width: 100%; background: rgba(99,102,241,0.1); border-left: 3px solid var(--accent); padding: 8px 12px; border-radius: 8px; display: none; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 13px; }
   #reply-banner.visible { display: flex; }
   #reply-banner b { color: var(--accent-light); }
   #reply-banner button { background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; }
-  .icon-btn { background: transparent; border: none; cursor: pointer; color: var(--text-muted); width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+  .icon-btn { background: transparent; border: none; cursor: pointer; color: var(--text-muted); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: 0.2s; flex-shrink: 0; }
   .icon-btn:hover { background: var(--bg-hover); color: var(--text-main); }
-  .icon-btn svg { width: 24px; height: 24px; }
-  #input { flex: 1; padding: 12px 20px; border-radius: 24px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); font-size: var(--font-base); outline: none; transition: 0.2s; min-width: 150px; }
+  .icon-btn svg { width: 22px; height: 22px; }
+  #input { flex: 1; padding: 12px 16px; border-radius: 24px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); font-size: var(--font-base); outline: none; transition: 0.2s; min-width: 50px; }
   #input:focus { border-color: var(--accent); background: var(--bg-base); }
-  #form button[type="submit"] { width: 44px; height: 44px; border-radius: 50%; border: none; background: var(--accent); color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+  #form button[type="submit"] { width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--accent); color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; flex-shrink: 0; }
   #form button[type="submit"]:hover { background: var(--accent-hover); transform: scale(1.05); }
   #form button[type="submit"] svg { width: 18px; height: 18px; margin-left: -2px; }
   
-  #sticker-panel { position: absolute; bottom: 85px; left: 24px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 20px; padding: 16px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; width: 320px; z-index: 100; box-shadow: 0 15px 40px rgba(0,0,0,0.5); }
+  #sticker-panel { position: absolute; bottom: 70px; left: 12px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 20px; padding: 12px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; width: calc(100% - 24px); z-index: 100; box-shadow: 0 15px 40px rgba(0,0,0,0.5); }
   #sticker-panel img { width: 100%; cursor: pointer; padding: 4px; border-radius: 12px; transition: 0.1s; }
   #sticker-panel img:hover { transform: scale(1.15); background: var(--bg-hover); }
-  .custom-sticker-btn { width: 100%; height: 100%; aspect-ratio: 1; border-radius: 12px; border: 2px dashed var(--border-color); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); font-size: 28px; transition: 0.2s; }
+  .custom-sticker-btn { width: 100%; height: 100%; aspect-ratio: 1; border-radius: 12px; border: 2px dashed var(--border-color); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); font-size: 24px; transition: 0.2s; }
   .custom-sticker-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(99,102,241,0.1); }
 
-  /* --- УЛУЧШЕННЫЕ ЗВОНКИ --- */
+  /* --- ЗВОНКИ --- */
   #call-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000; display: flex; flex-direction: column; z-index: 4000; }
-  #call-header { position: absolute; top: 0; left: 0; width: 100%; padding: 20px; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent); z-index: 10; pointer-events: none; }
+  #call-header { position: absolute; top: 0; left: 0; width: 100%; padding: 20px; display: flex; justify-content: center; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent); z-index: 10; pointer-events: none; }
   #call-timer { color: white; font-size: 16px; font-weight: 500; background: rgba(0,0,0,0.5); padding: 6px 16px; border-radius: 20px; }
   
-  #video-grid { flex: 1; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; padding: 10px; align-content: center; justify-content: center; }
-  .video-wrapper { position: relative; background: #111; border-radius: 20px; overflow: hidden; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+  #video-grid { flex: 1; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; padding: 10px; align-content: center; justify-content: center; }
+  .video-wrapper { position: relative; background: #111; border-radius: 20px; overflow: hidden; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 100%; height: 100%; min-height: 200px;}
   .video-wrapper video { width: 100%; height: 100%; object-fit: cover; }
-  .video-wrapper.me { position: fixed; bottom: 120px; right: 30px; width: 200px; height: 150px; z-index: 20; border: 2px solid rgba(255,255,255,0.2); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); cursor: move; }
+  .video-wrapper.me { position: fixed; bottom: 100px; right: 15px; width: 120px; height: 160px; z-index: 20; border: 2px solid rgba(255,255,255,0.2); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); cursor: move; min-height: auto; }
   .video-name { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.6); padding: 4px 12px; border-radius: 20px; font-size: 13px; color: white; backdrop-filter: blur(4px); }
   
-  #call-controls-bar { padding: 20px; display: flex; justify-content: center; gap: 20px; background: #0b0f19; z-index: 20; }
+  #call-controls-bar { padding: 20px; display: flex; justify-content: center; gap: 20px; background: #0b0f19; z-index: 20; padding-bottom: max(20px, env(safe-area-inset-bottom)); }
   .call-btn { width: 60px; height: 60px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; background: #1f2937; color: white; transition: 0.2s; }
   .call-btn:hover { background: #374151; transform: scale(1.05); }
   .call-btn.active { background: rgba(239,68,68,0.2); color: var(--danger); }
@@ -178,21 +178,33 @@
   .btn-hangup { background: var(--danger); color: white; padding: 0 32px; border-radius: 30px; border: none; font-weight: 600; cursor: pointer; font-size: 16px; height: 60px; display: flex; align-items: center; justify-content: center; }
   .btn-hangup:hover { background: #dc2626; }
 
+  /* МОБИЛЬНАЯ АДАПТАЦИЯ */
   @media (max-width: 768px) {
-    .settings-container { flex-direction: column; width: 100vw; height: 100vh; border-radius: 0; }
-    .settings-sidebar { width: 100%; height: auto; flex-direction: row; overflow-x: auto; padding: 10px; border-right: none; border-bottom: 1px solid var(--border-color); }
-    .settings-nav-item { padding: 10px; margin-bottom: 0; flex-shrink: 0; font-size: 14px; }
+    .settings-container { flex-direction: column; width: 100vw; height: 100vh; border-radius: 0; padding-top: 60px; overflow-y: auto; }
+    .settings-sidebar { width: 100%; height: auto; flex-direction: row; overflow-x: auto; padding: 10px; border-right: none; border-bottom: 1px solid var(--border-color); background: var(--bg-panel); position: fixed; top: 0; left: 0; z-index: 20; }
+    .settings-nav-item { padding: 10px; margin-bottom: 0; flex-shrink: 0; font-size: 14px; border-radius: 20px; }
+    .settings-nav-item:hover, .settings-nav-item.active { transform: none; }
     .settings-content { padding: 20px; }
+    .close-settings { top: 10px; right: 10px; z-index: 30; background: var(--bg-hover); }
+    
     #app { grid-template-columns: 1fr; }
     aside { display: flex; width: 100%; }
     main { display: none; width: 100%; }
     #app.chat-open aside { display: none; }
     #app.chat-open main { display: flex; }
-    .msg { max-width: 85%; }
-    #sticker-panel { width: calc(100% - 24px); left: 12px; }
-    .video-wrapper.me { width: 120px; height: 90px; bottom: 100px; right: 15px; }
-    #call-controls-bar { gap: 10px; padding: 15px; }
+    
+    #messages { padding: 12px; }
+    .msg { max-width: 90%; }
+    #form { padding: 10px 12px; gap: 6px; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+    #input { font-size: 14px; padding: 10px 14px; }
+    .icon-btn { width: 36px; height: 36px; }
+    .icon-btn svg { width: 20px; height: 20px; }
+    #form button[type="submit"] { width: 36px; height: 36px; }
+    
+    .video-wrapper.me { width: 100px; height: 130px; bottom: 90px; right: 10px; }
+    #call-controls-bar { gap: 15px; padding: 15px; }
     .call-btn { width: 50px; height: 50px; }
+    .call-btn svg { width: 20px; height: 20px; }
     .btn-hangup { padding: 0 20px; font-size: 14px; height: 50px; }
   }
 </style>
@@ -448,7 +460,6 @@
   </div>
 </div>
 
-<!-- УЛУЧШЕННЫЙ ЭКРАН ЗВОНКА -->
 <div id="call-overlay" class="hidden">
   <div id="call-header">
     <div id="call-timer">00:00</div>
@@ -467,6 +478,7 @@
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
+// Весь JS код остался прежним
 const $ = id => document.getElementById(id);
 let token = localStorage.getItem('pm_token');
 let me = null; try { me = JSON.parse(localStorage.getItem('pm_user') || 'null'); } catch {}
@@ -786,9 +798,6 @@ async function renderMessage(m) {
   } else {
     d.innerHTML += `${escapeHtml(m.body)}<span class="t">${new Date(m.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>`;
   }
-  const reactRow = document.createElement('div');
-  reactRow.className = 'reactions-row';
-  // Reaction logic can go here if server supports it, for now skipping to prevent errors
   
   let pressTimer;
   d.addEventListener('contextmenu', (e) => { e.preventDefault(); showMsgMenu(e.pageX, e.pageY, m); });
@@ -854,7 +863,6 @@ $('form').onsubmit = async (e) => {
   socket.emit('typing', { toId: currentChat.id, groupId: currentChat.type === 'group' ? currentChat.id : null, isTyping: false });
 };
 
-/* --- УЛУЧШЕННЫЕ ЗВОНКИ --- */
 let peers = {}, localStream = null, inCall = false, callTimerInterval, callSeconds = 0;
 
 $('startCallBtn').onclick = async () => {
@@ -897,7 +905,6 @@ function addVideoElement(id, name, stream, isMe) {
   $('video-grid').appendChild(wrapper);
 }
 
-// Кнопки управления звонком
 $('muteMicBtn').onclick = () => {
   if (!localStream) return;
   const audioTrack = localStream.getAudioTracks()[0];

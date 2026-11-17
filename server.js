@@ -49,7 +49,7 @@ async function initDB() {
   try {
     await dbQuery(`CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, passwordHash TEXT NOT NULL,
-        avatar TEXT, contacts TEXT DEFAULT '[]', createdAt INTEGER NOT NULL
+        avatar TEXT, bio TEXT, contacts TEXT DEFAULT '[]', createdAt INTEGER NOT NULL
     )`);
     await dbQuery(`CREATE TABLE IF NOT EXISTS messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT, fromId INTEGER NOT NULL, toId INTEGER,
@@ -60,8 +60,8 @@ async function initDB() {
         avatar TEXT, members TEXT DEFAULT '[]', admins TEXT DEFAULT '[]', createdAt INTEGER NOT NULL
     )`);
     
-    // Миграция на всякий случай
     try { await dbQuery(`ALTER TABLE messages ADD COLUMN groupId INTEGER`); } catch (e) {}
+    try { await dbQuery(`ALTER TABLE users ADD COLUMN bio TEXT`); } catch (e) {}
 
     console.log('✅ Таблицы Turso готовы');
   } catch (e) { console.error('❌ Ошибка БД:', e.message); }
@@ -78,7 +78,7 @@ app.post('/api/register', async (req, res) => {
     if (!username || !password) return res.status(400).json({ error: 'Нужны логин и пароль' });
     const hash = bcrypt.hashSync(password, 10);
     const result = await dbQuery('INSERT INTO users (username, passwordHash, createdAt) VALUES (?, ?, ?)', [username.trim(), hash, Date.now()]);
-    const user = { id: result.lastInsertRowid, username: username.trim(), avatar: null };
+    const user = { id: result.lastInsertRowid, username: username.trim(), avatar: null, bio: null };
     const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, user });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -91,16 +91,16 @@ app.post('/api/login', async (req, res) => {
     const user = result.rows[0];
     if (!user || !bcrypt.compareSync(String(password || ''), user.passwordHash)) return res.status(401).json({ error: 'Неверный логин или пароль' });
     const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { id: user.id, username: user.username, avatar: user.avatar } });
+    res.json({ token, user: { id: user.id, username: user.username, avatar: user.avatar, bio: user.bio } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/avatar', async (req, res) => {
+app.post('/api/profile', async (req, res) => {
   try {
     const payload = jwt.verify(req.headers.authorization.split(' ')[1], JWT_SECRET);
-    await dbQuery('UPDATE users SET avatar = ? WHERE id = ?', [req.body.avatar, payload.id]);
-    res.json({ ok: true, avatar: req.body.avatar });
-  } catch (e) { res.status(401).json({ error: 'Ошибка авторизации' }); }
+    await dbQuery('UPDATE users SET avatar = ?, bio = ? WHERE id = ?', [req.body.avatar, req.body.bio, payload.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(401).json({ error: 'Ошибка' }); }
 });
 
 app.post('/api/change-password', async (req, res) => {
@@ -142,7 +142,7 @@ const getContactsList = async (userId) => {
   const ids = JSON.parse(res.rows[0].contacts || '[]');
   if (ids.length === 0) return [];
   const placeholders = ids.map(() => '?').join(',');
-  const usersRes = await dbQuery(`SELECT id, username, avatar FROM users WHERE id IN (${placeholders})`, ids);
+  const usersRes = await dbQuery(`SELECT id, username, avatar, bio FROM users WHERE id IN (${placeholders})`, ids);
   return usersRes.rows;
 };
 
@@ -161,9 +161,7 @@ io.on('connection', async (socket) => {
     cb({ contacts: await getContactsList(me.id), groups: await getGroupsList(me.id) });
   });
 
-  socket.on('force-refresh', () => {
-    io.emit('refresh-data');
-  });
+  socket.on('force-refresh', () => { io.emit('refresh-data'); });
 
   socket.on('create-group', async ({ name, type, memberIds }, cb) => {
     try {
@@ -180,7 +178,6 @@ io.on('connection', async (socket) => {
       if (isGroup) {
         const groupRes = await dbQuery('SELECT admins FROM groups WHERE id = ?', [id]);
         if (!groupRes.rows[0]) return cb({ error: 'Группа не найдена' });
-        
         const admins = JSON.parse(groupRes.rows[0].admins);
         if (!admins.includes(me.id)) return cb({ error: 'Только создатель может удалить канал' });
 
@@ -189,7 +186,6 @@ io.on('connection', async (socket) => {
         io.emit('chat-deleted', { id, isGroup });
       } else {
         await dbQuery('DELETE FROM messages WHERE (fromId = ? AND toId = ?) OR (fromId = ? AND toId = ?)', [me.id, id, id, me.id]);
-        
         const targetSockets = online.get(Number(id));
         if (targetSockets) {
           for (const sid of targetSockets) io.to(sid).emit('chat-deleted', { id: me.id, isGroup: false });

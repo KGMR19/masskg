@@ -19,19 +19,15 @@ async function dbQuery(sql, args = []) {
     if (arg === null) return { type: 'null' };
     return { type: 'text', value: String(arg) };
   });
-
   const response = await fetch(DB_ENDPOINT, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${TURSO_TOKEN}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ requests: [{ type: 'execute', stmt: { sql, args: formattedArgs } }, { type: 'close' }] })
   });
-
   if (!response.ok) throw new Error(`Turso Error: ${await response.text()}`);
-
   const data = await response.json();
   const result = data.results[0];
   if (result.type === 'error') throw new Error(result.error.message);
-  
   const resData = result.response.result;
   const cols = resData.cols.map(c => c.name);
   const rows = resData.rows.map(row => {
@@ -41,7 +37,6 @@ async function dbQuery(sql, args = []) {
     });
     return obj;
   });
-
   return { rows, lastInsertRowid: resData.last_insert_rowid ? Number(resData.last_insert_rowid) : null };
 }
 
@@ -61,10 +56,14 @@ async function initDB() {
     )`);
     
     try { await dbQuery(`ALTER TABLE messages ADD COLUMN groupId INTEGER`); } catch (e) {}
+    try { await dbQuery(`ALTER TABLE messages ADD COLUMN reactions TEXT DEFAULT '[]'`); } catch (e) {}
+    try { await dbQuery(`ALTER TABLE messages ADD COLUMN replyTo INTEGER`); } catch (e) {}
+    try { await dbQuery(`ALTER TABLE messages ADD COLUMN selfDestruct INTEGER`); } catch (e) {}
     try { await dbQuery(`ALTER TABLE users ADD COLUMN bio TEXT`); } catch (e) {}
     try { await dbQuery(`ALTER TABLE users ADD COLUMN lastSeen INTEGER`); } catch (e) {}
+    try { await dbQuery(`ALTER TABLE users ADD COLUMN settings TEXT DEFAULT '{}'`); } catch (e) {}
 
-    console.log('✅ Таблицы Turso готовы');
+    console.log('✅ Таблицы GhoFlux готовы');
   } catch (e) { console.error('❌ Ошибка БД:', e.message); }
 }
 initDB();
@@ -79,7 +78,7 @@ app.post('/api/register', async (req, res) => {
     if (!username || !password) return res.status(400).json({ error: 'Нужны логин и пароль' });
     const hash = bcrypt.hashSync(password, 10);
     const result = await dbQuery('INSERT INTO users (username, passwordHash, createdAt) VALUES (?, ?, ?)', [username.trim(), hash, Date.now()]);
-    const user = { id: result.lastInsertRowid, username: username.trim(), avatar: null, bio: null };
+    const user = { id: result.lastInsertRowid, username: username.trim(), avatar: null, bio: null, settings: '{}' };
     const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, user });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -92,34 +91,29 @@ app.post('/api/login', async (req, res) => {
     const user = result.rows[0];
     if (!user || !bcrypt.compareSync(String(password || ''), user.passwordHash)) return res.status(401).json({ error: 'Неверный логин или пароль' });
     const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { id: user.id, username: user.username, avatar: user.avatar, bio: user.bio } });
+    res.json({ token, user: { id: user.id, username: user.username, avatar: user.avatar, bio: user.bio, settings: user.settings || '{}' } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/profile', async (req, res) => {
   try {
     const payload = jwt.verify(req.headers.authorization.split(' ')[1], JWT_SECRET);
-    await dbQuery('UPDATE users SET avatar = ?, bio = ? WHERE id = ?', [req.body.avatar, req.body.bio, payload.id]);
+    await dbQuery('UPDATE users SET avatar = ?, bio = ?, settings = ? WHERE id = ?', [req.body.avatar, req.body.bio, req.body.settings || '{}', payload.id]);
     res.json({ ok: true });
   } catch (e) { res.status(401).json({ error: 'Ошибка' }); }
 });
 
 app.post('/api/change-password', async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ error: 'Нет токена' });
-    const payload = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+    const payload = jwt.verify(req.headers.authorization.split(' ')[1], JWT_SECRET);
     const userRes = await dbQuery('SELECT * FROM users WHERE id = ?', [payload.id]);
     const user = userRes.rows[0];
-    
-    if (!user) return res.status(404).json({ error: 'Пользователь не найден.' });
-    if (!bcrypt.compareSync(req.body.oldPassword, user.passwordHash))
-      return res.status(400).json({ error: 'Неверный текущий пароль' });
-
+    if (!user || !bcrypt.compareSync(req.body.oldPassword, user.passwordHash))
+      return res.status(400).json({ error: 'Неверный пароль' });
     const newHash = bcrypt.hashSync(req.body.newPassword, 10);
     await dbQuery('UPDATE users SET passwordHash = ? WHERE id = ?', [newHash, payload.id]);
     res.json({ ok: true });
-  } catch (e) { res.status(401).json({ error: 'Ошибка сессии: ' + e.message }); }
+  } catch (e) { res.status(401).json({ error: 'Ошибка' }); }
 });
 
 const server = http.createServer(app);
@@ -152,6 +146,12 @@ const getGroupsList = async (userId) => {
   return res.rows.map(g => ({ ...g, members: JSON.parse(g.members), admins: JSON.parse(g.admins) }));
 };
 
+const parseMsg = (r) => ({
+  ...r, 
+  read: r.read === 1,
+  reactions: JSON.parse(r.reactions || '[]')
+});
+
 io.on('connection', async (socket) => {
   const me = socket.user;
   if (!online.has(me.id)) online.set(me.id, new Set());
@@ -160,10 +160,18 @@ io.on('connection', async (socket) => {
   await dbQuery('UPDATE users SET lastSeen = ? WHERE id = ?', [Date.now(), me.id]);
 
   socket.on('get-data', async (cb) => {
-    cb({ contacts: await getContactsList(me.id), groups: await getGroupsList(me.id) });
+    const userRes = await dbQuery('SELECT settings FROM users WHERE id = ?', [me.id]);
+    cb({ contacts: await getContactsList(me.id), groups: await getGroupsList(me.id), settings: userRes.rows[0]?.settings || '{}' });
   });
 
   socket.on('force-refresh', () => { io.emit('refresh-data'); });
+
+  socket.on('save-settings', async ({ settings }, cb) => {
+    try {
+      await dbQuery('UPDATE users SET settings = ? WHERE id = ?', [JSON.stringify(settings), me.id]);
+      if (cb) cb({ ok: true });
+    } catch(e) { if (cb) cb({ error: e.message }); }
+  });
 
   socket.on('typing', ({ toId, groupId, isTyping }) => {
     if (groupId) {
@@ -181,26 +189,64 @@ io.on('connection', async (socket) => {
     }
   });
 
-  socket.on('delete-message', async ({ msgId, toId, groupId }) => {
+  socket.on('toggle-reaction', async ({ msgId, emoji }) => {
     try {
-      await dbQuery('DELETE FROM messages WHERE id = ?', [msgId]);
-      if (groupId) {
-        const res = await dbQuery('SELECT members FROM groups WHERE id = ?', [groupId]);
-        if (res.rows[0]) {
-          const members = JSON.parse(res.rows[0].members);
-          members.forEach(uid => {
-            const set = online.get(uid);
-            if (set) for (const sid of set) io.to(sid).emit('msg-deleted', { msgId });
-          });
-        }
+      const msgRes = await dbQuery('SELECT * FROM messages WHERE id = ?', [msgId]);
+      const msg = msgRes.rows[0];
+      if (!msg) return;
+      let reactions = JSON.parse(msg.reactions || '[]');
+      const existing = reactions.find(r => r.userId === me.id);
+      if (existing && existing.emoji === emoji) {
+        reactions = reactions.filter(r => r.userId !== me.id);
+      } else {
+        reactions = reactions.filter(r => r.userId !== me.id);
+        reactions.push({ userId: me.id, emoji });
+      }
+      await dbQuery('UPDATE messages SET reactions = ? WHERE id = ?', [JSON.stringify(reactions), msgId]);
+      
+      const payload = { msgId, reactions };
+      if (msg.groupId) {
+        const g = await dbQuery('SELECT members FROM groups WHERE id = ?', [msg.groupId]);
+        if (g.rows[0]) JSON.parse(g.rows[0].members).forEach(uid => {
+          const set = online.get(uid);
+          if (set) for (const sid of set) io.to(sid).emit('reaction-updated', payload);
+        });
       } else {
         const deliver = (uid) => {
           const set = online.get(uid);
-          if (set) for (const sid of set) io.to(sid).emit('msg-deleted', { msgId });
+          if (set) for (const sid of set) io.to(sid).emit('reaction-updated', payload);
         };
-        deliver(toId); deliver(me.id);
+        deliver(msg.fromId); deliver(msg.toId);
       }
     } catch(e) {}
+  });
+
+  socket.on('delete-message', async ({ msgId, toId, groupId }) => {
+    try {
+      await dbQuery('DELETE FROM messages WHERE id = ?', [msgId]);
+      const deliver = (uid) => {
+        const set = online.get(uid);
+        if (set) for (const sid of set) io.to(sid).emit('msg-deleted', { msgId });
+      };
+      if (groupId) {
+        const res = await dbQuery('SELECT members FROM groups WHERE id = ?', [groupId]);
+        if (res.rows[0]) JSON.parse(res.rows[0].members).forEach(deliver);
+      } else { deliver(toId); deliver(me.id); }
+    } catch(e) {}
+  });
+
+  socket.on('search-messages', async ({ query }, cb) => {
+    try {
+      const rows = await dbQuery(
+        `SELECT m.*, u.username as fromUsername FROM messages m 
+         LEFT JOIN users u ON m.fromId = u.id
+         WHERE m.body LIKE ? AND (m.toId = ? OR m.fromId = ? OR m.groupId IN (
+           SELECT id FROM groups WHERE members LIKE ?
+         )) ORDER BY m.createdAt DESC LIMIT 50`,
+        [`%${query}%`, me.id, me.id, `%${me.id}%`]
+      );
+      cb(rows.rows.map(parseMsg));
+    } catch (e) { cb([]); }
   });
 
   socket.on('create-group', async ({ name, type, memberIds }, cb) => {
@@ -219,16 +265,49 @@ io.on('connection', async (socket) => {
         const groupRes = await dbQuery('SELECT admins FROM groups WHERE id = ?', [id]);
         if (!groupRes.rows[0]) return cb({ error: 'Группа не найдена' });
         const admins = JSON.parse(groupRes.rows[0].admins);
-        if (!admins.includes(me.id)) return cb({ error: 'Только создатель может удалить канал' });
+        if (!admins.includes(me.id)) return cb({ error: 'Только создатель' });
         await dbQuery('DELETE FROM groups WHERE id = ?', [id]);
         await dbQuery('DELETE FROM messages WHERE groupId = ?', [id]);
         io.emit('chat-deleted', { id, isGroup });
       } else {
-        await dbQuery('DELETE FROM messages WHERE (fromId = ? AND toId = ?) OR (fromId = ? AND toId = ?)', [me.id, id, id, me.id]);
-        const targetSockets = online.get(Number(id));
+        const idToDelete = Number(id);
+        await dbQuery('DELETE FROM messages WHERE (fromId = ? AND toId = ?) OR (fromId = ? AND toId = ?)', [me.id, idToDelete, idToDelete, me.id]);
+        
+        const meRes = await dbQuery('SELECT contacts FROM users WHERE id = ?', [me.id]);
+        if (meRes.rows[0]) {
+          let contacts = JSON.parse(meRes.rows[0].contacts || '[]').filter(c => c !== idToDelete);
+          await dbQuery('UPDATE users SET contacts = ? WHERE id = ?', [JSON.stringify(contacts), me.id]);
+        }
+        const targetRes = await dbQuery('SELECT contacts FROM users WHERE id = ?', [idToDelete]);
+        if (targetRes.rows[0]) {
+          let targetContacts = JSON.parse(targetRes.rows[0].contacts || '[]').filter(c => c !== me.id);
+          await dbQuery('UPDATE users SET contacts = ? WHERE id = ?', [JSON.stringify(targetContacts), idToDelete]);
+        }
+        const targetSockets = online.get(idToDelete);
         if (targetSockets) for (const sid of targetSockets) io.to(sid).emit('chat-deleted', { id: me.id, isGroup: false });
-        socket.emit('chat-deleted', { id, isGroup: false });
+        socket.emit('chat-deleted', { id: idToDelete, isGroup: false });
       }
+      cb({ ok: true });
+      io.emit('refresh-data');
+    } catch (e) { cb({ error: e.message }); }
+  });
+
+  socket.on('clear-all-chats', async (cb) => {
+    try {
+      await dbQuery('DELETE FROM messages WHERE fromId = ? OR toId = ?', [me.id, me.id]);
+      const meRes = await dbQuery('SELECT contacts FROM users WHERE id = ?', [me.id]);
+      if (meRes.rows[0]) {
+        let contacts = JSON.parse(meRes.rows[0].contacts || '[]');
+        for (const cid of contacts) {
+          const targetRes = await dbQuery('SELECT contacts FROM users WHERE id = ?', [cid]);
+          if (targetRes.rows[0]) {
+            let tc = JSON.parse(targetRes.rows[0].contacts || '[]').filter(c => c !== me.id);
+            await dbQuery('UPDATE users SET contacts = ? WHERE id = ?', [JSON.stringify(tc), cid]);
+          }
+        }
+        await dbQuery('UPDATE users SET contacts = ? WHERE id = ?', [JSON.stringify([]), me.id]);
+      }
+      socket.emit('all-chats-cleared');
       cb({ ok: true });
       io.emit('refresh-data');
     } catch (e) { cb({ error: e.message }); }
@@ -240,16 +319,12 @@ io.on('connection', async (socket) => {
       const target = targetRes.rows[0];
       const meRes = await dbQuery('SELECT * FROM users WHERE id = ?', [me.id]);
       const meUser = meRes.rows[0];
-
       if (!target) return cb({ error: 'Пользователь не найден' });
       if (target.id === me.id) return cb({ error: 'Это вы' });
-      
       const myContacts = JSON.parse(meUser.contacts || '[]');
       if (myContacts.includes(target.id)) return cb({ error: 'Уже в контактах' });
-
       myContacts.push(target.id);
       await dbQuery('UPDATE users SET contacts = ? WHERE id = ?', [JSON.stringify(myContacts), me.id]);
-
       const targetContacts = JSON.parse(target.contacts || '[]');
       if (!targetContacts.includes(me.id)) {
         targetContacts.push(me.id);
@@ -263,37 +338,36 @@ io.on('connection', async (socket) => {
   socket.on('history', async ({ withId, isGroup }, cb) => {
     try {
       const sql = isGroup 
-        ? `SELECT * FROM messages WHERE groupId = ? ORDER BY createdAt ASC LIMIT 200`
-        : `SELECT * FROM messages WHERE (fromId = ? AND toId = ?) OR (fromId = ? AND toId = ?) ORDER BY createdAt ASC LIMIT 200`;
+        ? `SELECT * FROM messages WHERE groupId = ? ORDER BY createdAt ASC LIMIT 300`
+        : `SELECT * FROM messages WHERE (fromId = ? AND toId = ?) OR (fromId = ? AND toId = ?) ORDER BY createdAt ASC LIMIT 300`;
       const args = isGroup ? [withId] : [me.id, withId, withId, me.id];
-      
       const res = await dbQuery(sql, args);
-      cb(res.rows.map(r => ({ ...r, read: r.read === 1 })));
+      cb(res.rows.map(parseMsg));
     } catch (e) { cb([]); }
   });
 
-  socket.on('message', async ({ toId, groupId, body, type }, ack) => {
+  socket.on('message', async ({ toId, groupId, body, type, replyTo, selfDestruct }, ack) => {
     try {
       const isGroup = !!groupId;
       const result = await dbQuery(
-        'INSERT INTO messages (fromId, toId, groupId, body, type, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
-        [me.id, toId || null, groupId || null, body, type || 'text', Date.now()]
+        'INSERT INTO messages (fromId, toId, groupId, body, type, replyTo, selfDestruct, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [me.id, toId || null, groupId || null, body, type || 'text', replyTo || null, selfDestruct || null, Date.now()]
       );
       
-      const msg = { id: result.lastInsertRowid, fromId: me.id, username: me.username, toId, groupId, body, type: type || 'text', read: false, createdAt: Date.now() };
+      const msg = { id: result.lastInsertRowid, fromId: me.id, username: me.username, toId, groupId, body, type: type || 'text', read: false, replyTo, selfDestruct, reactions: [], createdAt: Date.now() };
+      if (replyTo) {
+        const r = await dbQuery('SELECT m.*, u.username as fromUsername FROM messages m LEFT JOIN users u ON m.fromId = u.id WHERE m.id = ?', [replyTo]);
+        if (r.rows[0]) msg.replyData = { body: r.rows[0].body, username: r.rows[0].fromUsername, type: r.rows[0].type };
+      }
 
+      const deliver = (uid, message) => {
+        const set = online.get(uid);
+        if (set) for (const sid of set) io.to(sid).emit('message', message);
+      };
       if (isGroup) {
-        const groupRes = await dbQuery('SELECT members FROM groups WHERE id = ?', [groupId]);
-        const members = JSON.parse(groupRes.rows[0].members);
-        members.forEach(uid => {
-          const set = online.get(uid);
-          if (set) for (const sid of set) io.to(sid).emit('message', msg);
-        });
+        const g = await dbQuery('SELECT members FROM groups WHERE id = ?', [groupId]);
+        if (g.rows[0]) JSON.parse(g.rows[0].members).forEach(uid => deliver(uid, msg));
       } else {
-        const deliver = (uid, message) => {
-          const set = online.get(uid);
-          if (set) for (const sid of set) io.to(sid).emit('message', message);
-        };
         deliver(toId, msg);
         for (const sid of online.get(me.id) || []) { if (sid !== socket.id) io.to(sid).emit('message', msg); }
       }
@@ -301,7 +375,6 @@ io.on('connection', async (socket) => {
     } catch (e) { if (ack) ack({ error: e.message }); }
   });
 
-  // Звонки
   const activeCalls = new Map(); 
   socket.on('join-call', async ({ groupId }) => {
     if (!activeCalls.has(groupId)) activeCalls.set(groupId, new Set());
@@ -343,6 +416,25 @@ io.on('connection', async (socket) => {
   });
 });
 
+// Автоудаление сообщений с таймером
+setInterval(async () => {
+  try {
+    const now = Date.now();
+    const expired = await dbQuery('SELECT id, fromId, toId, groupId FROM messages WHERE selfDestruct IS NOT NULL AND selfDestruct < ?', [now]);
+    for (const m of expired.rows) {
+      await dbQuery('DELETE FROM messages WHERE id = ?', [m.id]);
+      const deliver = (uid) => {
+        const set = online.get(uid);
+        if (set) for (const sid of set) io.to(sid).emit('msg-deleted', { msgId: m.id });
+      };
+      if (m.groupId) {
+        const g = await dbQuery('SELECT members FROM groups WHERE id = ?', [m.groupId]);
+        if (g.rows[0]) JSON.parse(g.rows[0].members).forEach(deliver);
+      } else { deliver(m.fromId); deliver(m.toId); }
+    }
+  } catch(e) {}
+}, 10000);
+
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n✅ GhoFlux запущен на порту ${PORT}\n`);
+  console.log(`\n🚀 GhoFlux v6.0 (MAX) запущен на порту ${PORT}\n`);
 });

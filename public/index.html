@@ -25,6 +25,14 @@
   button { font-family: inherit; }
   ::-webkit-scrollbar { width: 0px; background: transparent; }
 
+  /* --- НИЖНЯЯ НАВИГАЦИЯ (МОБИЛЬНАЯ) --- */
+  #mobile-bottom-nav { display: none; position: fixed; bottom: 0; left: 0; width: 100vw; background: var(--bg-panel); border-top: 1px solid var(--border-color); z-index: 500; padding-bottom: env(safe-area-inset-bottom); }
+  .mobile-nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px 0; color: var(--text-muted); cursor: pointer; transition: 0.2s; border: none; background: transparent; }
+  .mobile-nav-item.active { color: var(--accent); }
+  .mobile-nav-item svg { width: 22px; height: 22px; margin-bottom: 4px; }
+  .mobile-nav-item span { font-size: 11px; font-weight: 600; }
+  
+  /* --- МОДАЛЬНЫЕ ОКНА --- */
   .modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 3000; }
   .settings-container { width: 95vw; max-width: 1000px; height: 85vh; background: var(--bg-panel); border-radius: 24px; display: flex; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
   .settings-sidebar { width: 280px; background: rgba(0,0,0,0.2); border-right: 1px solid var(--border-color); padding: 24px; display: flex; flex-direction: column; overflow-y: auto; }
@@ -46,6 +54,7 @@
   .close-settings { background: var(--bg-hover); border: none; color: var(--text-main); width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; position: absolute; top: 20px; right: 20px; transition: 0.2s; z-index: 10; }
   .close-settings:hover { background: var(--danger); }
 
+  /* --- АВТОРИЗАЦИЯ --- */
   #auth { max-width: 380px; margin: 10vh auto; padding: 32px; background: var(--bg-panel); border-radius: 24px; border: 1px solid var(--border-color); box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
   #auth h1 { font-size: 28px; margin-bottom: 24px; text-align: center; font-weight: 700; background: var(--bubble-me); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
   #auth input { width: 100%; padding: 14px 16px; margin-bottom: 16px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); font-size: 15px; outline: none; }
@@ -53,6 +62,7 @@
   #auth #reg { background: transparent; border: 1px solid var(--border-color); }
   #err { color: #f87171; font-size: 14px; text-align: center; margin-top: 16px; min-height: 20px; }
 
+  /* --- ОСНОВНОЙ ИНТЕРФЕЙС --- */
   #app { display: grid; grid-template-columns: 340px 1fr; height: 100%; width: 100vw; }
   aside { background: var(--bg-panel); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; height: 100%; min-height: 0; }
   aside header { padding: 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); }
@@ -122,10 +132,7 @@
   .msg .reply-preview b { display: block; font-weight: 600; color: var(--accent-light); margin-bottom: 2px; font-size: 11px; }
   .msg .reply-preview span { opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
   .msg .t { display: block; font-size: 11px; opacity: 0.7; margin-top: 4px; text-align: right; }
-  
-  /* Фикс для длинных Base64 сообщений, чтобы они не ломали экран */
   .msg { word-break: break-all; }
-
   .msg.sticker img { width: 130px; height: 130px; object-fit: contain; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2)); }
   .msg.sticker { background: transparent !important; padding: 0 !important; box-shadow: none; word-break: normal; }
   @keyframes pop { 0% { opacity: 0; transform: scale(0.95) translateY(5px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
@@ -188,11 +195,15 @@
     .close-settings { top: 10px; right: 10px; z-index: 30; background: var(--bg-hover); }
     
     #app { grid-template-columns: 1fr; }
-    aside { display: flex; width: 100%; }
+    aside { display: flex; width: 100%; padding-bottom: 60px; }
     main { display: none; width: 100%; }
     #app.chat-open aside { display: none; }
-    #app.chat-open main { display: flex; }
+    #app.chat-open main { display: flex; padding-bottom: 0; }
     
+    /* Показываем нижнюю навигацию только на мобилке, когда мы в списке чатов */
+    #mobile-bottom-nav { display: flex; }
+    #app.chat-open #mobile-bottom-nav { display: none; }
+
     #messages { padding: 12px; }
     .msg { max-width: 90%; }
     #form { padding: 10px 12px; gap: 6px; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
@@ -255,10 +266,15 @@
     </div>
 
     <div class="users-container">
-      <div class="list-header">💬 Личные сообщения</div>
-      <ul id="users-list"></ul>
-      <div class="list-header">👥 Каналы и Группы</div>
-      <ul id="groups-list"></ul>
+      <div id="groups-section">
+        <div class="list-header">👥 Каналы и Группы</div>
+        <ul id="groups-list"></ul>
+      </div>
+      
+      <div id="users-section">
+        <div class="list-header" id="users-header-title">💬 Личные сообщения</div>
+        <ul id="users-list"></ul>
+      </div>
     </div>
   </aside>
 
@@ -307,6 +323,22 @@
     </div>
   </main>
 </div>
+
+<!-- НИЖНЯЯ НАВИГАЦИЯ -->
+<nav id="mobile-bottom-nav">
+  <button class="mobile-nav-item active" data-tab="chats">
+    <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+    <span>Чаты</span>
+  </button>
+  <button class="mobile-nav-item" data-tab="contacts">
+    <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+    <span>Контакты</span>
+  </button>
+  <button class="mobile-nav-item" data-tab="settings">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+    <span>Настройки</span>
+  </button>
+</nav>
 
 <div id="msg-menu" class="hidden">
   <div class="emoji-picker-row">
@@ -478,13 +510,13 @@
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-// Весь JS код остался прежним
 const $ = id => document.getElementById(id);
 let token = localStorage.getItem('pm_token');
 let me = null; try { me = JSON.parse(localStorage.getItem('pm_user') || 'null'); } catch {}
 let socket = null, currentChat = null;
 let contacts = [], groups = [], onlineSet = new Set();
 let selectedMsgId = null, replyToMsg = null;
+let activeMobileTab = 'chats'; // 'chats' | 'contacts'
 
 const notifSound = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=');
 const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
@@ -570,6 +602,31 @@ async function start() {
   
   initStickers(); 
   setupSettings();
+  setupMobileNav();
+}
+
+function setupMobileNav() {
+  document.querySelectorAll('.mobile-nav-item').forEach(btn => {
+    btn.onclick = () => {
+      const tab = btn.dataset.tab;
+      
+      if (tab === 'settings') {
+        $('settingsBtn').click();
+        return;
+      }
+
+      activeMobileTab = tab;
+      
+      document.querySelectorAll('.mobile-nav-item').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      if ($('app').classList.contains('chat-open')) {
+        closeChat();
+      } else {
+        renderLists();
+      }
+    };
+  });
 }
 
 function renderAvatar(container, username, avatarBase64) {
@@ -741,6 +798,16 @@ function renderLists() {
   const q = $('searchInput').value.toLowerCase();
   const filtG = groups.filter(g => g.name.toLowerCase().includes(q));
   const filtC = contacts.filter(c => c.username.toLowerCase().includes(q));
+
+  // Логика для нижней навигации мобилки
+  if (activeMobileTab === 'contacts') {
+    $('groups-section').style.display = 'none';
+    $('users-header-title').textContent = '👤 Контакты';
+  } else {
+    $('groups-section').style.display = 'block';
+    $('users-header-title').textContent = '💬 Личные сообщения';
+  }
+
   renderList($('groups-list'), filtG, 'group');
   renderList($('users-list'), filtC, 'user');
 }

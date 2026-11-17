@@ -49,7 +49,7 @@ async function initDB() {
   try {
     await dbQuery(`CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, passwordHash TEXT NOT NULL,
-        avatar TEXT, bio TEXT, contacts TEXT DEFAULT '[]', createdAt INTEGER NOT NULL
+        avatar TEXT, bio TEXT, lastSeen INTEGER, contacts TEXT DEFAULT '[]', createdAt INTEGER NOT NULL
     )`);
     await dbQuery(`CREATE TABLE IF NOT EXISTS messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT, fromId INTEGER NOT NULL, toId INTEGER,
@@ -62,6 +62,7 @@ async function initDB() {
     
     try { await dbQuery(`ALTER TABLE messages ADD COLUMN groupId INTEGER`); } catch (e) {}
     try { await dbQuery(`ALTER TABLE users ADD COLUMN bio TEXT`); } catch (e) {}
+    try { await dbQuery(`ALTER TABLE users ADD COLUMN lastSeen INTEGER`); } catch (e) {}
 
     console.log('✅ Таблицы Turso готовы');
   } catch (e) { console.error('❌ Ошибка БД:', e.message); }
@@ -142,7 +143,7 @@ const getContactsList = async (userId) => {
   const ids = JSON.parse(res.rows[0].contacts || '[]');
   if (ids.length === 0) return [];
   const placeholders = ids.map(() => '?').join(',');
-  const usersRes = await dbQuery(`SELECT id, username, avatar, bio FROM users WHERE id IN (${placeholders})`, ids);
+  const usersRes = await dbQuery(`SELECT id, username, avatar, bio, lastSeen FROM users WHERE id IN (${placeholders})`, ids);
   return usersRes.rows;
 };
 
@@ -156,12 +157,51 @@ io.on('connection', async (socket) => {
   if (!online.has(me.id)) online.set(me.id, new Set());
   online.get(me.id).add(socket.id);
   io.emit('online', [...online.keys()]);
+  await dbQuery('UPDATE users SET lastSeen = ? WHERE id = ?', [Date.now(), me.id]);
 
   socket.on('get-data', async (cb) => {
     cb({ contacts: await getContactsList(me.id), groups: await getGroupsList(me.id) });
   });
 
   socket.on('force-refresh', () => { io.emit('refresh-data'); });
+
+  socket.on('typing', ({ toId, groupId, isTyping }) => {
+    if (groupId) {
+      dbQuery('SELECT members FROM groups WHERE id = ?', [groupId]).then(res => {
+        if (!res.rows[0]) return;
+        const members = JSON.parse(res.rows[0].members).filter(id => id !== me.id);
+        members.forEach(uid => {
+          const set = online.get(uid);
+          if (set) for (const sid of set) io.to(sid).emit('typing', { fromId: me.id, isTyping });
+        });
+      });
+    } else {
+      const set = online.get(toId);
+      if (set) for (const sid of set) io.to(sid).emit('typing', { fromId: me.id, isTyping });
+    }
+  });
+
+  socket.on('delete-message', async ({ msgId, toId, groupId }) => {
+    try {
+      await dbQuery('DELETE FROM messages WHERE id = ?', [msgId]);
+      if (groupId) {
+        const res = await dbQuery('SELECT members FROM groups WHERE id = ?', [groupId]);
+        if (res.rows[0]) {
+          const members = JSON.parse(res.rows[0].members);
+          members.forEach(uid => {
+            const set = online.get(uid);
+            if (set) for (const sid of set) io.to(sid).emit('msg-deleted', { msgId });
+          });
+        }
+      } else {
+        const deliver = (uid) => {
+          const set = online.get(uid);
+          if (set) for (const sid of set) io.to(sid).emit('msg-deleted', { msgId });
+        };
+        deliver(toId); deliver(me.id);
+      }
+    } catch(e) {}
+  });
 
   socket.on('create-group', async ({ name, type, memberIds }, cb) => {
     try {
@@ -180,16 +220,13 @@ io.on('connection', async (socket) => {
         if (!groupRes.rows[0]) return cb({ error: 'Группа не найдена' });
         const admins = JSON.parse(groupRes.rows[0].admins);
         if (!admins.includes(me.id)) return cb({ error: 'Только создатель может удалить канал' });
-
         await dbQuery('DELETE FROM groups WHERE id = ?', [id]);
         await dbQuery('DELETE FROM messages WHERE groupId = ?', [id]);
         io.emit('chat-deleted', { id, isGroup });
       } else {
         await dbQuery('DELETE FROM messages WHERE (fromId = ? AND toId = ?) OR (fromId = ? AND toId = ?)', [me.id, id, id, me.id]);
         const targetSockets = online.get(Number(id));
-        if (targetSockets) {
-          for (const sid of targetSockets) io.to(sid).emit('chat-deleted', { id: me.id, isGroup: false });
-        }
+        if (targetSockets) for (const sid of targetSockets) io.to(sid).emit('chat-deleted', { id: me.id, isGroup: false });
         socket.emit('chat-deleted', { id, isGroup: false });
       }
       cb({ ok: true });
@@ -264,6 +301,7 @@ io.on('connection', async (socket) => {
     } catch (e) { if (ack) ack({ error: e.message }); }
   });
 
+  // Звонки
   const activeCalls = new Map(); 
   socket.on('join-call', async ({ groupId }) => {
     if (!activeCalls.has(groupId)) activeCalls.set(groupId, new Set());
@@ -292,9 +330,15 @@ io.on('connection', async (socket) => {
     }
   });
 
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     const set = online.get(me.id);
-    if (set) { set.delete(socket.id); if (!set.size) online.delete(me.id); }
+    if (set) { 
+      set.delete(socket.id); 
+      if (!set.size) { 
+        online.delete(me.id); 
+        await dbQuery('UPDATE users SET lastSeen = ? WHERE id = ?', [Date.now(), me.id]);
+      } 
+    }
     io.emit('online', [...online.keys()]);
   });
 });
